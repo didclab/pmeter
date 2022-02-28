@@ -68,8 +68,9 @@ class ODS_Metrics():
             sys_interfaces = psutil.net_if_stats()
             interface_stats = sys_interfaces[self.interface]
             print(interface_stats)
-            self.nic_mtu = interface_stats['mtu']
-            self.nic_speed = interface_stats['speed']
+            # snicstats(isup=True, duplex=<NicDuplex.NIC_DUPLEX_UNKNOWN: 0>, speed=0, mtu=9001)
+            self.nic_mtu = interface_stats[3]
+            self.nic_speed = interface_stats[2]
             self.latency = measure_latency(host='google.com')
         if measure_tcp:
             print('Measuring tcp')
