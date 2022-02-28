@@ -55,6 +55,7 @@ class ODS_Metrics():
             print('Getting metrics of: ' + interface)
             nic_counter_dic = psutil.net_io_counters(pernic=True)
             interface_counter_dic = nic_counter_dic[interface]
+            print(interface_counter_dic)
             self.bytes_sent = interface_counter_dic['bytes_sent']
             self.bytes_recv = interface_counter_dic['bytes_recv']
             self.packets_sent = interface_counter_dic['packets_sent']
@@ -65,6 +66,7 @@ class ODS_Metrics():
             self.dropout = interface_counter_dic['dropout']
             sys_interfaces = psutil.net_if_stats()
             interface_stats = sys_interfaces[self.interface]
+            print(interface_stats)
             self.nic_mtu = interface_stats['mtu']
             self.nic_speed = interface_stats['speed']
             self.latency = measure_latency(host='google.com')
