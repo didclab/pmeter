@@ -1,7 +1,7 @@
 """PMeter a tool to measure the TCP/UDP network conditions that the running host experiences
 
 Usage:
-  pmeter_cli.py measure <INTERFACE>... [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL -time_length=RUN_FOR]
+  pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL -time_length=RUN_FOR]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
