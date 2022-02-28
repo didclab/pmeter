@@ -54,16 +54,17 @@ class ODS_Metrics():
         if measure_network:
             print('Getting metrics of: ' + interface)
             nic_counter_dic = psutil.net_io_counters(pernic=True)
-            interface_counter_dic = nic_counter_dic[interface]
-            print(interface_counter_dic)
-            self.bytes_sent = interface_counter_dic['bytes_sent']
-            self.bytes_recv = interface_counter_dic['bytes_recv']
-            self.packets_sent = interface_counter_dic['packets_sent']
-            self.packets_recv = interface_counter_dic['packets_recv']
-            self.errin = interface_counter_dic['errin']
-            self.errout = interface_counter_dic['errout']
-            self.dropin = interface_counter_dic['dropin']
-            self.dropout = interface_counter_dic['dropout']
+            interface_counter_tuple = nic_counter_dic[interface]
+            print(interface_counter_tuple)
+            # snetio(bytes_sent=179353738, bytes_recv=1961293807, packets_sent=1699113, packets_recv=2477127, errin=0, errout=0, dropin=0, dropout=0)
+            self.bytes_sent = interface_counter_tuple[0]
+            self.bytes_recv = interface_counter_tuple[1]
+            self.packets_sent = interface_counter_tuple[2]
+            self.packets_recv = interface_counter_tuple[3]
+            self.errin = interface_counter_tuple[4]
+            self.errout = interface_counter_tuple[5]
+            self.dropin = interface_counter_tuple[6]
+            self.dropout = interface_counter_tuple[7]
             sys_interfaces = psutil.net_if_stats()
             interface_stats = sys_interfaces[self.interface]
             print(interface_stats)
