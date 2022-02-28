@@ -4,6 +4,7 @@ import json
 from datetime import date, datetime
 import psutil
 import platform
+from tcp_latency import measure_latency
 
 
 class ODS_Metrics():
@@ -33,6 +34,7 @@ class ODS_Metrics():
         self.start_time=""
         self.end_time=""
         self.count = 0
+        self.latency = []
 
     # def active_core_count(self):
     #     self.active_core_count = multiprocessing.cpu_count()
@@ -42,7 +44,7 @@ class ODS_Metrics():
         with open(file_name, "a+") as f:
             f.write(j + "\n")
     
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False):
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="http://google.com"):
         self.start_time = datetime.now().__str__()
         self.interface = interface
         if measure_kernel:
@@ -65,13 +67,13 @@ class ODS_Metrics():
             interface_stats = sys_interfaces[self.interface]
             self.nic_mtu = interface_stats['mtu']
             self.nic_speed = interface_stats['speed']
+            self.latency = measure_latency(host='google.com')
         if measure_tcp:
             print('Measuring tcp')
             psutil.net_connections(kind="tcp")
         if measure_udp:
             print('Measuring udp')
             psutil.net_connections(kind="udp")
-
         self.end_time=datetime.now().__str__()
         if(print_to_std_out):
             print(json.dumps(self.__dict__))

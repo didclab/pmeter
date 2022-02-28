@@ -27,6 +27,7 @@ if __name__ == '__main__':
     arguments = docopt(__doc__, version='Naval Fate 2.0')
     print(arguments)
     if arguments['measure']:
+        interface = arguments['<INTERFACE>']
         file_name = arguments['--file_name']
         network_only = arguments['--measure_network']
         kernel_only = arguments['--measure_kernel']
@@ -34,5 +35,5 @@ if __name__ == '__main__':
         tcp_only = arguments['--measure_tcp']
         std_out_print = arguments['--enable_std_out']
         metrics = ODS_Metrics()
-        metrics.measure(measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print)
+        metrics.measure(interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print)
         print('In Measure')
