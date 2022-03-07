@@ -55,7 +55,7 @@ class ODS_Metrics():
         self.interface = interface
         if measure_kernel:
             self.active_core_count = multiprocessing.cpu_count()
-            # self.cpu_frequency = psutil.cpu_freq()
+            self.cpu_frequency = psutil.cpu_freq()
             self.cpu_arch = platform.platform()
         if measure_network:
             print('Getting metrics of: ' + interface)
