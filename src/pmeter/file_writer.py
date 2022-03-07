@@ -14,7 +14,7 @@ class ODS_Metrics():
     def __init__(self):
         #kernel metrics 
         self.active_core_count = 0
-        self.cpu_frequency = 0.0
+        self.cpu_frequency = []
         self.energy_consumed = 0.0
         self.cpu_arch = ""
         #network metrics
