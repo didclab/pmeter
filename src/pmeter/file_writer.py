@@ -50,16 +50,16 @@ class ODS_Metrics():
         with open(file_path, "a+") as f:
             f.write(j + "\n")
     
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="http://google.com"):
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com"):
         self.start_time = datetime.now().__str__()
         self.interface = interface
         if measure_kernel:
             self.active_core_count = multiprocessing.cpu_count()
-            self.cpu_frequency = psutil.cpu_freq()
+            # self.cpu_frequency = psutil.cpu_freq()
             self.cpu_arch = platform.platform()
         if measure_network:
             print('Getting metrics of: ' + interface)
-            nic_counter_dic = psutil.net_io_counters(pernic=True)
+            nic_counter_dic = psutil.net_io_counters(pernic=True) ## we could take the average of all speeds that every socket experiences and thus get a rough estimate of bandwidth?? 
             interface_counter_tuple = nic_counter_dic[interface]
             self.bytes_sent = interface_counter_tuple[0]
             self.bytes_recv = interface_counter_tuple[1]
@@ -84,7 +84,6 @@ class ODS_Metrics():
         self.end_time=datetime.now().__str__()
         if(print_to_std_out):
             print(json.dumps(self.__dict__))
-        
         self.to_file()
 
     def defaultconverter(o):
