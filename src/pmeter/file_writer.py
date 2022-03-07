@@ -6,8 +6,8 @@ from datetime import date, datetime
 import psutil
 import platform
 from tcp_latency import measure_latency
-import os 
-
+import os
+from pythonping import ping
 
 class ODS_Metrics():
 
@@ -74,6 +74,7 @@ class ODS_Metrics():
             self.nic_mtu = interface_stats[3]
             self.nic_speed = interface_stats[2]
             self.latency = measure_latency(host=latency_host)
+            self.rtt= ping('8.8.8.8').rtt_avg_ms
             print(self.latency)
         if measure_tcp:
             print('Measuring tcp')
@@ -89,4 +90,3 @@ class ODS_Metrics():
     def defaultconverter(o):
         if isinstance(o, datetime.datetime):
             return o.__str__()
-
