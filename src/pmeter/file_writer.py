@@ -8,7 +8,7 @@ import platform
 from tcp_latency import measure_latency
 import os 
 import time
-
+from pythonping import ping
 
 class ODS_Metrics():
 
@@ -92,4 +92,3 @@ class ODS_Metrics():
     def defaultconverter(o):
         if isinstance(o, datetime.datetime):
             return o.__str__()
-
