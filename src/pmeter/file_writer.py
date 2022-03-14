@@ -6,7 +6,8 @@ from datetime import date, datetime
 import psutil
 import platform
 from tcp_latency import measure_latency
-import os
+import os 
+import time
 from pythonping import ping
 
 class ODS_Metrics():
@@ -14,7 +15,7 @@ class ODS_Metrics():
     def __init__(self):
         #kernel metrics 
         self.active_core_count = 0
-        self.cpu_frequency = 0.0
+        self.cpu_frequency = []
         self.energy_consumed = 0.0
         self.cpu_arch = ""
         #network metrics
@@ -36,7 +37,7 @@ class ODS_Metrics():
         self.start_time=""
         self.end_time=""
         self.count = 0
-        self.latency = []
+        self.latency = []        
 
     # def active_core_count(self):
     #     self.active_core_count = multiprocessing.cpu_count()
@@ -50,42 +51,43 @@ class ODS_Metrics():
         with open(file_path, "a+") as f:
             f.write(j + "\n")
     
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com"):
-        self.start_time = datetime.now().__str__()
-        self.interface = interface
-        if measure_kernel:
-            self.active_core_count = multiprocessing.cpu_count()
-            self.cpu_frequency = psutil.cpu_freq()
-            self.cpu_arch = platform.platform()
-        if measure_network:
-            print('Getting metrics of: ' + interface)
-            nic_counter_dic = psutil.net_io_counters(pernic=True) ## we could take the average of all speeds that every socket experiences and thus get a rough estimate of bandwidth?? 
-            interface_counter_tuple = nic_counter_dic[interface]
-            self.bytes_sent = interface_counter_tuple[0]
-            self.bytes_recv = interface_counter_tuple[1]
-            self.packets_sent = interface_counter_tuple[2]
-            self.packets_recv = interface_counter_tuple[3]
-            self.errin = interface_counter_tuple[4]
-            self.errout = interface_counter_tuple[5]
-            self.dropin = interface_counter_tuple[6]
-            self.dropout = interface_counter_tuple[7]
-            sys_interfaces = psutil.net_if_stats()
-            interface_stats = sys_interfaces[self.interface]
-            self.nic_mtu = interface_stats[3]
-            self.nic_speed = interface_stats[2]
-            self.latency = measure_latency(host=latency_host)
-            self.rtt= ping('8.8.8.8').rtt_avg_ms
-            print(self.latency)
-        if measure_tcp:
-            print('Measuring tcp')
-            psutil.net_connections(kind="tcp")
-        if measure_udp:
-            print('Measuring udp')
-            psutil.net_connections(kind="udp")
-        self.end_time=datetime.now().__str__()
-        if(print_to_std_out):
-            print(json.dumps(self.__dict__))
-        self.to_file()
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:01",latency_host="google.com", measurement=5):
+        for i in range(0,measurement):
+            self.start_time = datetime.now().__str__()
+            self.interface = interface
+            if measure_kernel:
+                self.active_core_count = multiprocessing.cpu_count()
+                self.cpu_frequency = psutil.cpu_freq()
+                self.cpu_arch = platform.platform()
+            if measure_network:
+                print('Getting metrics of: ' + interface)
+                nic_counter_dic = psutil.net_io_counters(pernic=True) ## we could take the average of all speeds that every socket experiences and thus get a rough estimate of bandwidth?? 
+                interface_counter_tuple = nic_counter_dic[interface]
+                self.bytes_sent = interface_counter_tuple[0]
+                self.bytes_recv = interface_counter_tuple[1]
+                self.packets_sent = interface_counter_tuple[2]
+                self.packets_recv = interface_counter_tuple[3]
+                self.errin = interface_counter_tuple[4]
+                self.errout = interface_counter_tuple[5]
+                self.dropin = interface_counter_tuple[6]
+                self.dropout = interface_counter_tuple[7]
+                sys_interfaces = psutil.net_if_stats()
+                interface_stats = sys_interfaces[self.interface]
+                self.nic_mtu = interface_stats[3]
+                self.nic_speed = interface_stats[2]
+                self.latency = measure_latency(host=latency_host)
+                print(self.latency)
+            if measure_tcp:
+                print('Measuring tcp')
+                psutil.net_connections(kind="tcp")
+            if measure_udp:
+                print('Measuring udp')
+                psutil.net_connections(kind="udp")
+            self.end_time=datetime.now().__str__()
+            if(print_to_std_out):
+                print(json.dumps(self.__dict__))
+            self.to_file()
+            time.sleep(interval)
 
     def defaultconverter(o):
         if isinstance(o, datetime.datetime):

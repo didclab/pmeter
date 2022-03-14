@@ -31,3 +31,10 @@ def bytes2human(n):
          value = float(n) / prefix[s]
          return '%.2f %s' % (value, s)
    return '%.2f B' % (n)
+
+#Found this here to convert HH:MM:SS to seconds https://stackoverflow.com/questions/6402812/how-to-convert-an-hmmss-time-string-to-seconds-in-python
+def get_sec(time_str):
+    print("Parsing time=",time_str, "to seconds")
+    """Get seconds from time."""
+    h, m, s = time_str.split(':')
+    return int(h) * 3600 + int(m) * 60 + int(s)
