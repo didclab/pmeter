@@ -7,7 +7,9 @@ import psutil
 import platform
 from tcp_latency import measure_latency
 import os
-from pythonping import ping
+import time
+import requests
+import socket
 
 class ODS_Metrics():
 
@@ -74,7 +76,7 @@ class ODS_Metrics():
             self.nic_mtu = interface_stats[3]
             self.nic_speed = interface_stats[2]
             self.latency = measure_latency(host=latency_host)
-            self.rtt= ping('8.8.8.8').rtt_avg_ms
+            self.rtt= self.find_rtt()
             print(self.latency)
         if measure_tcp:
             print('Measuring tcp')
@@ -90,3 +92,11 @@ class ODS_Metrics():
     def defaultconverter(o):
         if isinstance(o, datetime.datetime):
             return o.__str__()
+
+    def find_rtt(self, url=None):
+        if not url:
+            url= "http://www.google.com"
+        t1 = time.time()
+        r = requests.get(url)
+        t2 = time.time()
+        return t2 - t1
