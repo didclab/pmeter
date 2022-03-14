@@ -51,7 +51,7 @@ class ODS_Metrics():
         with open(file_path, "a+") as f:
             f.write(j + "\n")
     
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:05",latency_host="google.com", measurement=5):
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:01",latency_host="google.com", measurement=5):
         for i in range(0,measurement):
             self.start_time = datetime.now().__str__()
             self.interface = interface
