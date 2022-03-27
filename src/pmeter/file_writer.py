@@ -10,6 +10,7 @@ import os
 import time
 import requests
 import socket
+from pythonping import ping
 
 class ODS_Metrics():
 
@@ -94,9 +95,21 @@ class ODS_Metrics():
             return o.__str__()
 
     def find_rtt(self, url=None):
-        if not url:
-            url= "http://www.google.com"
-        t1 = time.time()
-        r = requests.get(url)
-        t2 = time.time()
-        return t2 - t1
+        default_rtt= 0
+        new_rtt= -1
+        try:
+            response_list = ping(('8.8.8.8'))
+            new_rtt= response_list.rtt_avg_ms
+        except:
+            try:
+                if not url:
+                    url = "http://www.google.com"
+                t1 = time.time()
+                r = requests.get(url)
+                t2 = time.time()
+                new_rtt= t2-t1
+            except:
+                new_rtt= default_rtt
+        finally:
+            return new_rtt if new_rtt!= -1 else default_rtt
+
