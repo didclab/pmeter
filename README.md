@@ -48,13 +48,14 @@ End System Resource Usage:
    * % of NIC used.
 
 #### Solution
-We initially explored three soultions and we have decided solution 1 would be sufficient and provide necessary metrics.
+We initially explored three soultions and we have decided solution 1 would be sufficient and provide accurate enough metrics.
 
 Solution 1. Writing a Python script which the Transfer-Service will run as a CRON job to collect the network conditions periodically. The script will create a file that will be formatted metric report, and the Transfer-Service will then read/parse that file and send it to CockroachDB/Prometheous that will be run on the AWS backend
 
-The current state of the project is we have a python script that supports: kernel, and some network level metrics. The script generates a a file in the users home directory under ~/.pmeter/pmeter_measure.txt, this file stores a json dump of the ODS_Metrics object inside of the file. 
-Every "row" of the file is a new ODS_Metrics object that stores a new measurement. This file then gets parsed and cleaned up as the Transfer-Service reads from it and appends its own data to the object(file count, types of files,,, etc)then proceeds to store the data in InfluxDB. 
+The current state of the project is we have a python script that supports: kernel, and some network level metrics. The script generates a a file in the users home directory under ~/.pmeter/pmeter_measure.txt, this file stores a json dump of the ODS_Metrics object inside of the file. The cli is able to run for a number of measurements or a certain amount of time.
+Every "row" of the file is a new ODS_Metrics object that stores a new measurement. This file then gets parsed and cleaned up as the Transfer-Service reads from it and appends its own data to the object(file count, types of files,,, etc)then proceeds to store the data in InfluxDB/CockroachDB. 
 
+The aggregator service is a publisher to InfluxDB and has 
 The aggregator service is a service running in the OneDataShare (ODS) VPC which summarizes and computes the data so we can perform some visualization. We currently have a graph being generated with one metric(latency) and we will now begin to explore ML.
 
 ###### Recap
@@ -63,12 +64,28 @@ Before we began exploring ML models we began by breaking down the problems which
 2. What is the given network condition that a host is experiencing?
 
 ###### The Data:
-The current data we are generating is what is commonly refereed to as "Time-Series Data". InfluxDb defines this type of data as "Time series data, also referred to as time-stamped data, is a sequence of data points indexed in time order. Time-stamped is data collected at different points in time.". It is essentially data that represents a snapshot of time for something, this something in our case in the network conditions that the Operating System is experiencing. 
+The current data we are generating is what is commonly refereed to as "Time-Series Data". InfluxDb defines this type of data as "Time series data, also referred to as time-stamped data, is a sequence of data points indexed in time order. Time-stamped is data collected at different points in time.". It is essentially data that represents a snapshot of time for something, this something in our case in the kernel/network conditions that the Operating System is experiencing.
+
+##### Example Graphs
+![Latency and CPU Frequency](/docs/images/Screenshot%202022-03-28%20at%2011.14.05%20AM.png "Latency and CPU Frequency")
+![RTT](/docs/images/Screenshot%202022-03-28%20at%2011.14.13%20AM.png "RTT")
+![RTT Over Time](/docs/images/Screenshot%202022-03-28%20at%2011.15.09%20AM.png "RTT Over Time")
+![Example Query](/docs/images/Screenshot%202022-03-28%20at%2011.15.54%20AM.png "Example Query")
 
 #### Challenges per Solution
 
 Solution 1: We currently expect the actual metrics to not be as accurate as the manual implementation on the Java application. As UDP/TCP are dynamic we know that having separate connections(python sockets vs java sockets) will create variability in the measurements. Another source of variability is using another programming language will only provide an estimation of what the Transfer-Service is experiencing in performance as the Java is completely virtualized. 
-The benefit of this approach is that Python has many libraries more network measuring libraries.  
+The benefit of this approach is that Python has many libraries more network measuring libraries.
+
+1. Bandwidth is still only realizable bandwidth for the ODS Transfer-Service.
+2. Ping traditionally uses ICMP which requires a high level of permissions, so if the process is not able to run ICMP ping then we use TCP ping which is less accurate but better than nothing.
+3. We are still observing the difference between CDB and InfluxDB in terms of extrapolating data. We currently fully support both database types and are now attempting to swell the DB and see how performance is.
+
+#### TO-DO
+1. Run the cli on DTN on CCR for 1 week to gather some data.
+2. Explore various regressions that would let us extrapolate relationships in values.
+3. Create a set of graphs(with types) to generate to summarize the conditions the host is going through over time.
+
 
 #### Libraries to be used per solution
 ping: will allow measurement of packet loss and latency
