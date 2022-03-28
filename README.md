@@ -8,7 +8,7 @@ Aman Harsh
 Neha Mishra
 Jacob Goldverg
 
-####Links to Relevant Papers
+#### Links to Relevant Papers
 1. [Historical Analysis and Real-Time Tuning](https://cse.buffalo.edu/faculty/tkosar/papers/jrnl_tpds_2018.pdf)
 2. Cheng, Liang and Marsic, Ivan. ‘Java-based Tools for Accurate Bandwidth Measurement of Digital Subscriber Line Networks’. 1 Jan. 2002 : 333 – 344.
 3. [Java-based tools for accurate bandwidth measurement of Digital Subscriber Line](https://www.researchgate.net/publication/237325992_Java-based_tools_for_accurate_bandwidth_measurement_of_Digital_Subscriber_Line)
@@ -16,10 +16,10 @@ Jacob Goldverg
 5. [Cross-layer Optimization of Big Data Transfer Throughput and Energy Consumption](https://par.nsf.gov/servlets/purl/10113313)
 6. [HARP: Predictive Transfer Optimization Based on Historical Analysis and Real-time Probing](https://cse.buffalo.edu/faculty/tkosar/papers/sc_2016.pdf)
 
-####The Problem
+#### The Problem
 Currently, the OneDataShare Transfer-Service do not collect/report(to AWS deployment) the network state they experience. Tools such as "sar" and "ethtool" report metrics like: ping, bandwidth, latency, link capacity, RTT,, etc to the user that allow them to understand bottlenecks in their network.
 
-####Metrics we collect
+#### Metrics we collect
 1. Kernel Level: 
    * active cores
    * cpu frequency
