@@ -140,12 +140,12 @@ class ODS_Metrics():
         default_rtt= 0
         new_rtt= -1
         try:
-            response_list = ping(('8.8.8.8'))
+            response_list = ping(Address.DEFAULT_PING_NUM_FORMAT, count=5)
             new_rtt= response_list.rtt_avg_ms
         except:
             try:
                 if not url:
-                    url = "http://www.google.com"
+                    url = Address.DEFAULT_PING_URL_FORMAT
                 t1 = time.time()
                 r = requests.get(url)
                 t2 = time.time()

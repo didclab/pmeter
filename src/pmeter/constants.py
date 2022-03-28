@@ -13,6 +13,10 @@ class KernelMetrics:
     NETWORK_CARD_USAGE="nic_usage"
     CPU_USAGE="cpu_usage"
 
+class Address:
+    DEFAULT_PING_NUM_FORMAT= "8.8.8.8"
+    DEFAULT_PING_URL_FORMAT= "www.google.com"
+
 #Found this function here https://www.admin-magazine.com/HPC/Articles/Process-Network-and-Disk-Metrics
 def bytes2human(n):
        # From sample script for psutils
