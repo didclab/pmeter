@@ -1,7 +1,7 @@
 """PMeter a tool to measure the TCP/UDP network conditions that the running host experiences
 
 Usage:
-  pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS]
+  pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -17,6 +17,8 @@ Options:
   -S --enable_std_out      Disable printing the results to standard output [default: False]
   --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:04]
   --measure=MEASUREMENTS   The number of times to run the measurement [default: 1]
+  --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec [default: 0s]
+
 """
 from docopt import docopt
 import multiprocessing
@@ -39,6 +41,14 @@ if __name__ == '__main__':
         interval = arguments['--interval']
         pause_between_measure = constants.get_sec(interval)
         times_to_measure = arguments['--measure']
+        lengthOfExperiment = arguments['--length']
+        print(lengthOfExperiment)
         metrics = ODS_Metrics()
-        metrics.measure(interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, measurement=int(times_to_measure))
+        if int(times_to_measure) > 1:
+              print("inside the measurements")
+              metrics.measurements_to_do(interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, measurement=int(times_to_measure))
+        if lengthOfExperiment != "0s":
+              print("Inside of length measure, ", lengthOfExperiment) 
+              metrics.length_measure(interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, length=lengthOfExperiment)
+        # metrics.measure(interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, measurement=int(times_to_measure))
         print('In Measure')
