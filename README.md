@@ -47,42 +47,46 @@ End System Resource Usage:
    * % of CPU’s used 
    * % of NIC used.
 
-#### Potential Solutions
-We have come up with 3 potential solutions to aggregating these metrics per Transfer Service.
+#### Solution
+We initially explored three soultions and we have decided solution 1 would be sufficient and provide necessary metrics.
+
 Solution 1. Writing a Python script which the Transfer-Service will run as a CRON job to collect the network conditions periodically. The script will create a file that will be formatted metric report, and the Transfer-Service will then read/parse that file and send it to CockroachDB/Prometheous that will be run on the AWS backend
-Solution 2. We detect the Operating System and use the standard networking tools available to us and do string parsing to then construct a metrics report and send to CockroachDB/Prometheous
-Solution 3. Implement the collection of these metrics on the connections/streams that the Transfer Service creates thus a totally manual implementation. As the metrics are collected we will report them back to AWS as a report.
+
+The current state of the project is we have a python script that supports: kernel, and some network level metrics. The script generates a a file in the users home directory under ~/.pmeter/pmeter_measure.txt, this file stores a json dump of the ODS_Metrics object inside of the file. 
+Every "row" of the file is a new ODS_Metrics object that stores a new measurement. This file then gets parsed and cleaned up as the Transfer-Service reads from it and appends its own data to the object(file count, types of files,,, etc)then proceeds to store the data in InfluxDB. 
+
+The aggregator service is a service running in the OneDataShare (ODS) VPC which summarizes and computes the data so we can perform some visualization. We currently have a graph being generated with one metric(latency) and we will now begin to explore ML.
+
+###### Recap
+Before we began exploring ML models we began by breaking down the problems which we are attempting to solve again. 
+1. What parameters(concurrency, pipelining, parallelism, and chunk size) are optimal for performing a big data file transfer?
+2. What is the given network condition that a host is experiencing?
+
+###### The Data:
+The current data we are generating is what is commonly refereed to as "Time-Series Data". InfluxDb defines this type of data as "Time series data, also referred to as time-stamped data, is a sequence of data points indexed in time order. Time-stamped is data collected at different points in time.". It is essentially data that represents a snapshot of time for something, this something in our case in the network conditions that the Operating System is experiencing. 
 
 #### Challenges per Solution
 
 Solution 1: We currently expect the actual metrics to not be as accurate as the manual implementation on the Java application. As UDP/TCP are dynamic we know that having separate connections(python sockets vs java sockets) will create variability in the measurements. Another source of variability is using another programming language will only provide an estimation of what the Transfer-Service is experiencing in performance as the Java is completely virtualized. 
 The benefit of this approach is that Python has many libraries more network measuring libraries.  
 
-Solution 2:
-We currently believe that this approach would result in a large amount of manual string parsing which is ok but will be challenging intially.
-
-Solution 3:
-This solution will be the most complex programmatically as we would need to introduce new classes that would allow the wrapping of streams.
-
 #### Libraries to be used per solution
 ping: will allow measurement of packet loss and latency
+psutil: A networking library that exposes kernel/os level metrics.
 statsd: A library that allows us to construct concise reports for sending to AWS.
+influxdb: A Time series database that allows us to store and generate trivial graphs.
 
 Solution 1. tcp-latency, udp-latency, ping, psutil(Exposes: CPU, NIC metrics) allows us to compute RTT, Bandwidth, estimated link capacity.
 
-Solution 2: 
-1. Windows(ping) 
-2. Unix(ping, iftop)
-3. Mac(ping, iftop)
-
-Solution 3:
-A manual implementation will require us wrapping the InputStream, OutputStream, and respective Channels such that we are able to keep track of the data sent/rcv vs how much we expected to send/rcv.
-
 ##### List of Technologies
-Tools: ping, iftop
+Tools: ping, psutil,
 Technologies: Java, Python, CockroachDB, Prometheus, Grafana
 
 #### What we will Accomplish
 By the end of the semester we would like to have the transfer service to be fully monitoring its network conditions and reporting it periodically back to the ODS backend.
 We will be using either CockroachDB or Prometheus to be storing the time-series data thus allowing the ODS deployment to optimize the transfer based on the papers above.
 For extra browny points we would like to implement a Grafana dashboard so every user can be aware of the network conditions around their transfer.
+
+
+#### References
+1. 
