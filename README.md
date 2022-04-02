@@ -104,6 +104,9 @@ By the end of the semester we would like to have the transfer service to be full
 We will be using either CockroachDB or Prometheus to be storing the time-series data thus allowing the ODS deployment to optimize the transfer based on the papers above.
 For extra browny points we would like to implement a Grafana dashboard so every user can be aware of the network conditions around their transfer.
 
+#### What we have accomplished
+1. We have a CLI that captures the kernel, and network parameters that the OS exposes to the application layer
+2. We have a time series DB(InfluxDB) which allows us to store and manipulate the time 
 
 #### References
 1. 

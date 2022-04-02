@@ -2,7 +2,7 @@ from email.policy import default
 import multiprocessing
 from pathlib import Path
 import json
-from datetime import date, datetime
+import datetime
 import psutil
 import platform
 from tcp_latency import measure_latency
@@ -10,19 +10,19 @@ import os
 import time
 import requests
 from pythonping import ping
-from datetime import datetime, timedelta
-
+from datetime import datetime
 
 class ODS_Metrics():
 
     def __init__(self):
         # kernel metrics
+        self.interface = ""
+        self.ods_user = ""
         self.active_core_count = 0
         self.cpu_frequency = []
         self.energy_consumed = 0.0
         self.cpu_arch = ""
         # network metrics
-        self.interface = ""
         self.rtt = 0.0
         self.bandwidth = 0.0
         self.bandwidth_delay_product = 0.0
@@ -42,70 +42,23 @@ class ODS_Metrics():
         self.count = 0
         self.latency = []
 
-    # def active_core_count(self):
-    #     self.active_core_count = multiprocessing.cpu_count()
-    def to_file(self, folder_path="/.pmeter", file_name="pmeter_measure.txt"):
-        folder_path = str(Path.home())+folder_path
-        file_path = folder_path + "/" + file_name
-        j = json.dumps(self.__dict__)
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        with open(file_path, "a+") as f:
-            f.write(j + "\n")
+    def set_user(self, user_passed):
+        user = os.getenv('ODS_USER', '')
+        if len(user_passed) > 0:
+            self.ods_user = user_passed
+        else:
+            self.ods_user = user
 
-    def length_measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:01", latency_host="google.com", length="0s"):
-        end_date = datetime.now()
-        num = int(length[:-1])
-        print("The number of length measure", num)
-        if "s" in length:
-            end_date = datetime.now() + timedelta(seconds=num)
-        if "d" in length:
-            end_date = datetime.now() + timedelta(days=num)
-        if "w" in length:
-            end_date = datetime + timedelta(weeks=num)
-        if "h" in length:
-            end_date = datetime + timedelta(hours=num)
-
-        current_date = datetime.now()
-        while(current_date < end_date):
-            self.measure(interface, measure_tcp, measure_udp, measure_kernel,
-                         measure_network, print_to_std_out, interval, latency_host)
-            current_date = datetime.now()
-            print(current_date, end_date)
-
-
-    def measurements_to_do(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:01", latency_host="google.com", measurement=1):
-        for i in range(0, measurement):
-            self.measure(interface, measure_tcp, measure_udp, measure_kernel,
-                         measure_network, print_to_std_out, interval, latency_host)
-
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval="00:00:01", latency_host="google.com"):
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com"):
         self.start_time = datetime.now().__str__()
         self.interface = interface
         if measure_kernel:
-            self.active_core_count = multiprocessing.cpu_count()
-            self.cpu_frequency = psutil.cpu_freq()
-            self.cpu_arch = platform.platform()
+            self.measure_kernel()
         if measure_network:
             print('Getting metrics of: ' + interface)
             # we could take the average of all speeds that every socket experiences and thus get a rough estimate of bandwidth??
-            nic_counter_dic = psutil.net_io_counters(pernic=True)
-            interface_counter_tuple = nic_counter_dic[interface]
-            self.bytes_sent = interface_counter_tuple[0]
-            self.bytes_recv = interface_counter_tuple[1]
-            self.packets_sent = interface_counter_tuple[2]
-            self.packets_recv = interface_counter_tuple[3]
-            self.errin = interface_counter_tuple[4]
-            self.errout = interface_counter_tuple[5]
-            self.dropin = interface_counter_tuple[6]
-            self.dropout = interface_counter_tuple[7]
-            sys_interfaces = psutil.net_if_stats()
-            interface_stats = sys_interfaces[self.interface]
-            self.nic_mtu = interface_stats[3]
-            self.nic_speed = interface_stats[2]
-            self.latency = measure_latency(host=latency_host)
-            self.rtt = self.find_rtt()
-            print(self.latency)
+            self.measure_network(interface)
+            # self.measure_latency_rtt(latency_host)
         if measure_tcp:
             print('Measuring tcp')
             psutil.net_connections(kind="tcp")
@@ -116,7 +69,6 @@ class ODS_Metrics():
         if(print_to_std_out):
             print(json.dumps(self.__dict__))
         self.to_file()
-        time.sleep(interval)
 
     def find_rtt(self, url=None):
         default_rtt = 0
@@ -136,3 +88,44 @@ class ODS_Metrics():
                 new_rtt = default_rtt
         finally:
             return new_rtt if new_rtt != -1 else default_rtt
+
+    def measure_kernel(self):
+        self.active_core_count = multiprocessing.cpu_count()
+        if platform.system() != 'Darwin':
+            self.cpu_frequency = psutil.cpu_freq() #for some reason the m1 mac or maybe macs throw an error getting the frequency could also be my local set up.
+        self.cpu_arch = platform.platform()
+        self.active_core_count = multiprocessing.cpu_count()
+
+    def measure_latency_rtt(self, latency_host="google.com"):
+        self.latency = measure_latency(host=latency_host)
+        self.rtt = self.find_rtt()
+
+    def measure_network(self, interface):
+        nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
+        interface_counter_tuple = nic_counter_dic[interface]
+        self.bytes_sent = interface_counter_tuple[0]
+        self.bytes_recv = interface_counter_tuple[1]
+        self.packets_sent = interface_counter_tuple[2]
+        self.packets_recv = interface_counter_tuple[3]
+        self.errin = interface_counter_tuple[4]
+        self.errout = interface_counter_tuple[5]
+        self.dropin = interface_counter_tuple[6]
+        self.dropout = interface_counter_tuple[7]
+        sys_interfaces = psutil.net_if_stats()
+        interface_stats = sys_interfaces[self.interface]
+        self.nic_mtu = interface_stats[3]
+        self.nic_speed = interface_stats[2]
+
+    def get_system_interfaces(self):
+        nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
+        return nic_counter_dic.keys()
+        
+    def to_file(self, folder_path="/.pmeter", file_name="pmeter_measure.txt"):
+        folder_path = str(Path.home())+folder_path        
+        file_path = folder_path + "/" + file_name
+        j = json.dumps(self.__dict__)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        with open(file_path, "a+") as f:
+            f.write(j + "\n")        
+
