@@ -15,7 +15,7 @@ Options:
   -U --measure_udp         Set UDP monitoring only [default: True]
   -T --measure_tcp         Set TCP monitoring only [default: True]
   -S --enable_std_out      Disable printing the results to standard output [default: False]
-  --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:01]
+  --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:05]
   --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to -1 to ignore this and use only the length [default: 1]
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]
@@ -27,6 +27,9 @@ import constants
 from datetime import datetime, timedelta
 from file_writer import ODS_Metrics
 import time
+import copy
+
+old_measure_dict = {} #this is hackish but the keyis the interface name and for every metric we run of that interface name we replace and then run
 
 def convert_to_endate(length):
     end_date= datetime.now()
@@ -52,16 +55,26 @@ def measure_using_length(interface_list, metric, measure_tcp=True, measure_udp=T
         metric.measure_latency_rtt(latency_host)
         for intr_name in interface_list:
               metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
+              if intr_name in old_measure_dict:
+                  metric.do_deltas(old_measure_dict[intr_name])
+              old_measure_dict[intr_name] = copy.deepcopy(metric)
+              metric.to_file()              
         current_date = datetime.now()
         time.sleep(interval)
+
 
 def measure_using_measurements(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval=1, measurement=1):
     for i in range(0, measurement):
         metric.measure_latency_rtt(latency_host)
         print("measurement: ", i)
         for intr_name in interface_list:
-          metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
+            metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
+            if intr_name in old_measure_dict:
+                metric.do_deltas(old_measure_dict[intr_name])
+            old_measure_dict[intr_name] = copy.deepcopy(metric)
+            metric.to_file()              
         time.sleep(interval)
+      
       
 def begin_measuring(user, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval=1, latency_host="google.com", measurement=1, length="0s"):
     metric = ODS_Metrics()
@@ -78,18 +91,22 @@ def begin_measuring(user, interface='', measure_tcp=True, measure_udp=True, meas
     if length == '-1s':
         print("Measuring by using the number of measurments to perform with interval")
         measure_using_measurements(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, measurement)
-
-    measurements_counter = 0
-    end_date = convert_to_endate(length)
-    current_date = datetime.now()
-    while(current_date < end_date and measurements_counter < measurement):
-        print("Current date= ", current_date, "is less than end date=", end_date, " is =",current_date < end_date)
-        print("currentMeasurement is less than the max measurements",measurements_counter < measurement)
-        for intr_name in interface_list:
-              metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
+    else: 
+        measurements_counter = 0
+        end_date = convert_to_endate(length)
         current_date = datetime.now()
-        measurements_counter+=1
-        time.sleep(interval)
+        while(current_date < end_date and measurements_counter < measurement):
+            print("Current date= ", current_date, "is less than end date=", end_date, " is =",current_date < end_date)
+            print("currentMeasurement is less than the max measurements",measurements_counter < measurement)
+            for intr_name in interface_list:
+                  metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
+                  if intr_name in old_measure_dict:
+                      metric.do_deltas(old_measure_dict[intr_name])
+                  old_measure_dict[intr_name] = copy.deepcopy(metric)
+                  metric.to_file()              
+            current_date = datetime.now()
+            measurements_counter+=1
+            time.sleep(interval)
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='PMeter 1.0')

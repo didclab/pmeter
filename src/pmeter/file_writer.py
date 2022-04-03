@@ -30,10 +30,16 @@ class ODS_Metrics():
         self.link_capacity = 0.0
         self.bytes_sent = 0.0
         self.bytes_recv = 0.0
+        self.bytes_sent_delta=0
+        self.bytes_recv_delta=0
         self.packets_sent = 0
         self.packets_recv = 0
+        self.packets_sent_delta=0
+        self.packets_recv_delta=0
         self.dropin = 0
         self.dropout = 0
+        self.dropin_delta=0
+        self.dropout_delta=0
         self.nic_speed = 0  # this is in mb=megabits
         self.nic_mtu = 0  # max transmission speed of nic
         # identifying properties
@@ -67,8 +73,8 @@ class ODS_Metrics():
             psutil.net_connections(kind="udp")
         self.end_time = datetime.now().__str__()
         if(print_to_std_out):
-            print(json.dumps(self.__dict__))
-        self.to_file()
+            print("\n", json.dumps(self.__dict__), "\n")
+        # self.to_file()
 
     def find_rtt(self, url=None):
         default_rtt = 0
@@ -96,9 +102,9 @@ class ODS_Metrics():
         self.cpu_arch = platform.platform()
         self.active_core_count = multiprocessing.cpu_count()
 
-    def measure_latency_rtt(self, latency_host="google.com"):
+    def measure_latency_rtt(self, latency_host="http://google.com"):
         self.latency = measure_latency(host=latency_host)
-        self.rtt = self.find_rtt()
+        self.rtt = self.find_rtt(latency_host)
 
     def measure_network(self, interface):
         nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
@@ -127,5 +133,16 @@ class ODS_Metrics():
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         with open(file_path, "a+") as f:
-            f.write(j + "\n")        
+            f.write(j + "\n")
+
+    def do_deltas(self, old_metric):
+        self.bytes_sent_delta = self.bytes_sent - old_metric.bytes_sent
+        self.bytes_recv_delta = self.bytes_recv - old_metric.bytes_recv
+        self.packets_sent_delta = self.packets_sent - old_metric.packets_sent
+        self.packets_recv_delta = self.packets_recv - old_metric.packets_recv
+        self.errin_delta = self.errin - old_metric.errin
+        self.errout_delta = self.errout - old_metric.errout
+        self.dropin_delta = self.dropin - old_metric.dropin
+        self.dropout_delta = self.dropout - old_metric.dropout
+
 
