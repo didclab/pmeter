@@ -1,7 +1,7 @@
 """PMeter a tool to measure the TCP/UDP network conditions that the running host experiences
 
 Usage:
-  pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER]
+  pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -9,12 +9,13 @@ Commands:
 Options:
   -h --help                Show this screen
   --version                Show version
-  -F --file_name           Set the file name used to measure [default: network_results.txt]
   -N --measure_network     Set if we monitor only the network interface [default: True]
   -K --measure_kernel      Set if we monitor only the kernel [default: True]
   -U --measure_udp         Set UDP monitoring only [default: True]
   -T --measure_tcp         Set TCP monitoring only [default: True]
   -S --enable_std_out      Disable printing the results to standard output [default: False]
+  --file_name=FILENAME     Set the file name used to measure [default: network_results.txt]
+  --folder_path=FOLDERPATH Set the path to store the measurement files in the default is the users home directory under ~/.pmeter/
   --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:05]
   --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to -1 to ignore this and use only the length [default: 1]
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
@@ -76,7 +77,7 @@ def measure_using_measurements(interface_list, metric, measure_tcp, measure_udp,
         time.sleep(interval)
       
       
-def begin_measuring(user, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval=1, latency_host="google.com", measurement=1, length="0s"):
+def begin_measuring(user, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, interval=1, latency_host="google.com", measurement=1, length="0s", folder_path='', file_name=''):
     metric = ODS_Metrics()
     metric.set_user(user)
     interface_list = []
@@ -103,7 +104,7 @@ def begin_measuring(user, interface='', measure_tcp=True, measure_udp=True, meas
                   if intr_name in old_measure_dict:
                       metric.do_deltas(old_measure_dict[intr_name])
                   old_measure_dict[intr_name] = copy.deepcopy(metric)
-                  metric.to_file()              
+                  metric.to_file(file_name=file_name, folder_path=folder_path)              
             current_date = datetime.now()
             measurements_counter+=1
             time.sleep(interval)
@@ -113,6 +114,7 @@ if __name__ == '__main__':
     if arguments['measure']:
         interface = arguments['<INTERFACE>']
         file_name = arguments['--file_name']
+        folder_path = arguments['--folder_path']
         network_only = arguments['--measure_network']
         kernel_only = arguments['--measure_kernel']
         udp_only = arguments['--measure_udp']
@@ -124,6 +126,6 @@ if __name__ == '__main__':
         lengthOfExperiment = arguments['--length']
         user = arguments['--user']
         print("Parameters recieved: \n", "interface=",interface, "measure network=", network_only, "measure kernel=", kernel_only, "interval between measurements=", pause_between_measure, "times to measure default is 1=", times_to_measure)
-        begin_measuring(user=user, interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
+        begin_measuring(folder_path=folder_path, file_name=file_name,user=user, interface=interface,measure_tcp=tcp_only, measure_kernel=kernel_only, measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print, interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
 

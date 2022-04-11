@@ -48,6 +48,7 @@ class ODS_Metrics():
         self.count = 0
         self.latency = []
 
+
     def set_user(self, user_passed):
         user = os.getenv('ODS_USER', '')
         if len(user_passed) > 0:
@@ -125,13 +126,19 @@ class ODS_Metrics():
     def get_system_interfaces(self):
         nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
         return nic_counter_dic.keys()
-        
-    def to_file(self, folder_path="/.pmeter", file_name="pmeter_measure.txt"):
-        folder_path = str(Path.home())+folder_path        
-        file_path = folder_path + "/" + file_name
-        j = json.dumps(self.__dict__)
+
+    def to_file(self, folder_path='',folder_name=".pmeter", file_name="pmeter_measure.txt"):
+        print(folder_path)
+        print(file_name)
+        if not folder_path:
+            folder_path = os.path.join(Path.home(), folder_name)
+        else:
+            folder_path = os.path.join(folder_path, folder_name)
+        print(folder_path)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
+        file_path = os.path.join(folder_path, file_name)
+        j = json.dumps(self.__dict__)
         with open(file_path, "a+") as f:
             f.write(j + "\n")
 
