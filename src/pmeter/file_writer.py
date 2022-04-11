@@ -138,6 +138,7 @@ class ODS_Metrics():
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         file_path = os.path.join(folder_path, file_name)
+        print('The final path is ', file_path)
         j = json.dumps(self.__dict__)
         with open(file_path, "a+") as f:
             f.write(j + "\n")
