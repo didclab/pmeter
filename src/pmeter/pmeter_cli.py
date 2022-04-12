@@ -18,7 +18,7 @@ Options:
   --folder_path=FOLDERPATH Set the path to store the measurement files in the default is the users home directory under ~/.pmeter/
   --folder_name=FOLDERNAME Set the folder name for pmeter to dump data into [default: .pmeter]
   --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:05]
-  --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to -1 to ignore this and use only the length [default: 1]
+  --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to 0 to ignore this and use only the length [default: 1]
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]
 
@@ -90,7 +90,7 @@ def begin_measuring(user, folder_path, file_name, folder_name,interface='', meas
     if measurement == -1:
         print("Measuring by using the duration specified with interval")
         measure_using_length(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, length)
-    if length == '-1s':
+    if length == '0':
         print("Measuring by using the number of measurments to perform with interval")
         measure_using_measurements(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, measurement)
     else: 
