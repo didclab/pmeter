@@ -87,7 +87,7 @@ def begin_measuring(user, folder_path, file_name, folder_name,interface='', meas
             interface_list.append(inter_name)
     else:
         interface_list.append(interface)
-    if measurement == -1:
+    if measurement == 0:
         print("Measuring by using the duration specified with interval")
         measure_using_length(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, length)
     if length == '0':
