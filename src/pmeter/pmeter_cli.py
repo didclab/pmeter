@@ -49,7 +49,7 @@ def convert_to_endate(length):
     return end_date
 
 #run measurement using time only
-def measure_using_length(interface_list, metric, measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com", interval=1, length="0s"):
+def measure_using_length(interface_list, metric, folder_path, file_name, folder_name,measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com", interval=1, length="0s"):
     end_date = convert_to_endate(length)
     current_date = datetime.now()
     while(current_date < end_date):
@@ -60,12 +60,12 @@ def measure_using_length(interface_list, metric, measure_tcp=True, measure_udp=T
               if intr_name in old_measure_dict:
                   metric.do_deltas(old_measure_dict[intr_name])
               old_measure_dict[intr_name] = copy.deepcopy(metric)
-              metric.to_file()              
+              metric.to_file(file_name=file_name, folder_path=folder_path, folder_name=folder_name)              
         current_date = datetime.now()
         time.sleep(interval)
 
 
-def measure_using_measurements(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval=1, measurement=1):
+def measure_using_measurements(interface_list, metric, folder_path, file_name, folder_name, measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com", interval=1, measurement=1):
     for i in range(0, measurement):
         metric.measure_latency_rtt(latency_host)
         print("measurement: ", i)
@@ -74,7 +74,7 @@ def measure_using_measurements(interface_list, metric, measure_tcp, measure_udp,
             if intr_name in old_measure_dict:
                 metric.do_deltas(old_measure_dict[intr_name])
             old_measure_dict[intr_name] = copy.deepcopy(metric)
-            metric.to_file()              
+            metric.to_file(file_name=file_name, folder_path=folder_path, folder_name=folder_name)              
         time.sleep(interval)
       
       
@@ -89,16 +89,16 @@ def begin_measuring(user, folder_path, file_name, folder_name,interface='', meas
         interface_list.append(interface)
     if measurement == 0:
         print("Measuring by using the duration specified with interval")
-        measure_using_length(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, length)
+        measure_using_length(interface_list=interface_list, metric=metric, folder_path=folder_path, file_name=file_name, folder_name=folder_name, measure_tcp=measure_tcp, measure_udp=measure_udp, measure_kernel=measure_kernel, measure_network=measure_network, print_to_std_out=print_to_std_out, latency_host=latency_host, interval=interval, length=length)
     if length == '0':
         print("Measuring by using the number of measurments to perform with interval")
-        measure_using_measurements(interface_list, metric, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host, interval, measurement)
+        measure_using_measurements(interface_list=interface_list, metric=metric, folder_path=folder_path, file_name=file_name, folder_name=folder_name, measure_tcp=measure_tcp, measure_udp=measure_udp, measure_kernel=measure_kernel, measure_network=measure_network, print_to_std_out=print_to_std_out, latency_host=latency_host, interval=interval, measurement=measurement)
     else: 
         measurements_counter = 0
         end_date = convert_to_endate(length)
         current_date = datetime.now()
         while(current_date < end_date and measurements_counter < measurement):
-            print("Current date= ", current_date, "is less than end date=", end_date, " is =",current_date < end_date)
+            print("Current date= ", str(current_date), "is less than end date=", str(end_date), " is =",current_date < end_date)
             print("currentMeasurement is less than the max measurements",measurements_counter < measurement)
             for intr_name in interface_list:
                   metric.measure(intr_name, measure_tcp, measure_udp, measure_kernel, measure_network, print_to_std_out, latency_host)
@@ -112,6 +112,7 @@ def begin_measuring(user, folder_path, file_name, folder_name,interface='', meas
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='PMeter 1.0')
+    print(arguments)
     if arguments['measure']:
         interface = arguments['<INTERFACE>']
         file_name = arguments['--file_name']
