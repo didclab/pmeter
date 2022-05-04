@@ -53,7 +53,7 @@ def convert_to_endate(length):
 # run measurement using time only
 def measure_using_length(interface_list, metric, folder_path, file_name, folder_name, measure_tcp=True,
                          measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False,
-                         latency_host="google.com", interval=1, length="0s"):
+                         latency_host="http://google.com", interval=1, length="0s"):
     end_date = convert_to_endate(length)
     current_date = datetime.now()
     while (current_date < end_date):
@@ -72,7 +72,7 @@ def measure_using_length(interface_list, metric, folder_path, file_name, folder_
 
 def measure_using_measurements(interface_list, metric, folder_path, file_name, folder_name, measure_tcp=True,
                                measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False,
-                               latency_host="google.com", interval=1, measurement=1):
+                               latency_host="http://google.com", interval=1, measurement=1):
     for i in range(0, measurement):
         metric.measure_latency_rtt(latency_host)
         print("measurement: ", i)
@@ -88,7 +88,7 @@ def measure_using_measurements(interface_list, metric, folder_path, file_name, f
 
 def begin_measuring(user, folder_path, file_name, folder_name, interface='', measure_tcp=True, measure_udp=True,
                     measure_kernel=True, measure_network=True, print_to_std_out=False, interval=1,
-                    latency_host="google.com", measurement=1, length="0s"):
+                    latency_host="http://google.com", measurement=1, length="0s"):
     metric = ODS_Metrics()
     metric.set_user(user)
     interface_list = []

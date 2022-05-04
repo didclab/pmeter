@@ -56,7 +56,7 @@ class ODS_Metrics():
         else:
             self.ods_user = user
 
-    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="google.com"):
+    def measure(self, interface='', measure_tcp=True, measure_udp=True, measure_kernel=True, measure_network=True, print_to_std_out=False, latency_host="http://google.com"):
         self.start_time = datetime.now().__str__()
         self.interface = interface
         if measure_kernel:
@@ -65,7 +65,7 @@ class ODS_Metrics():
             print('Getting metrics of: ' + interface)
             # we could take the average of all speeds that every socket experiences and thus get a rough estimate of bandwidth??
             self.measure_network(interface)
-            # self.measure_latency_rtt(latency_host)
+            self.measure_latency_rtt(latency_host)
         if measure_tcp:
             print('Measuring tcp')
             psutil.net_connections(kind="tcp")
@@ -77,24 +77,17 @@ class ODS_Metrics():
             print("\n", json.dumps(self.__dict__), "\n")
         # self.to_file()
 
-    def find_rtt(self, url=None):
-        default_rtt = 0
-        new_rtt = -1
+    def find_rtt(self, url):
+        new_rtt = 0
         try:
-            response_list = ping(('8.8.8.8'))
+            response_list = ping("google.com")
             new_rtt = response_list.rtt_avg_ms
         except:
-            try:
-                if not url:
-                    url = "http://www.google.com"
-                t1 = time.time()
-                r = requests.get(url)
-                t2 = time.time()
-                new_rtt = t2-t1
-            except:
-                new_rtt = default_rtt
-        finally:
-            return new_rtt if new_rtt != -1 else default_rtt
+            t1 = time.time()
+            r=requests.get(url)
+            t2 = time.time()
+            new_rtt = t2-t1
+        return  new_rtt
 
     def measure_kernel(self):
         self.active_core_count = multiprocessing.cpu_count()
@@ -104,7 +97,7 @@ class ODS_Metrics():
         self.active_core_count = multiprocessing.cpu_count()
 
     def measure_latency_rtt(self, latency_host="http://google.com"):
-        self.latency = measure_latency(host=latency_host)
+        self.latency = measure_latency(host="google.com")
         self.rtt = self.find_rtt(latency_host)
 
     def measure_network(self, interface):
