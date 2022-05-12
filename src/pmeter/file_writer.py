@@ -77,18 +77,6 @@ class ODS_Metrics():
             print("\n", json.dumps(self.__dict__), "\n")
         # self.to_file()
 
-    def find_rtt(self, url):
-        new_rtt = 0
-        try:
-            response_list = ping("google.com")
-            new_rtt = response_list.rtt_avg_ms
-        except:
-            t1 = time.time()
-            r=requests.get(url)
-            t2 = time.time()
-            new_rtt = t2-t1
-        return  new_rtt
-
     def measure_kernel(self):
         self.active_core_count = multiprocessing.cpu_count()
         if platform.system() != 'Darwin':
@@ -97,8 +85,11 @@ class ODS_Metrics():
         self.active_core_count = multiprocessing.cpu_count()
 
     def measure_latency_rtt(self, latency_host="http://google.com"):
-        self.latency = measure_latency(host="google.com")
-        self.rtt = self.find_rtt(latency_host)
+        self.latency = measure_latency(host="google.com") #in miliseconds and a list
+        r=requests.get(latency_host)
+        self.rtt = r.elapsed.microseconds/1000
+        print('Latency =', self.latency, " RTT=", self.rtt)
+        print('LatencyType =', type(self.latency), " RTT Type=", type(self.rtt))
 
     def measure_network(self, interface):
         nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
