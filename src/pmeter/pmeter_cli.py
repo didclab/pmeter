@@ -17,7 +17,7 @@ Options:
   --file_name=FILENAME     Set the file name used to measure [default: pmeter_measure.txt]
   --folder_path=FOLDERPATH Set the path to store the measurement files in the default is the users home directory under ~/.pmeter/
   --folder_name=FOLDERNAME Set the folder name for pmeter to dump data into [default: .pmeter]
-  --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:05]
+  --interval=INTERVAL      Set the time to run the measurement in the format HH:MM:SS [default: 00:00:01]
   --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to 0 to ignore this and use only the length [default: 1]
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]

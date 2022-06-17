@@ -21,7 +21,9 @@ class ODS_Metrics():
         self.interface = ""
         self.ods_user = ""
         self.active_core_count = 0
-        self.cpu_frequency = []
+        self.cpu_frequency_max = 0.0
+        self.cpu_frequency_current = 0.0
+        self.cpu_frequency_min = 0.0
         self.energy_consumed = 0.0
         self.cpu_arch = ""
         # network metrics
@@ -82,8 +84,11 @@ class ODS_Metrics():
     def measure_kernel(self):
         self.active_core_count = multiprocessing.cpu_count()
         if platform.system() != 'Darwin':
-            self.cpu_frequency = psutil.cpu_freq(percpu=True) #for some reason the m1 mac or maybe macs throw an error getting the frequency could also be my local set up.
-        print(psutil.cpu_freq(percpu=True))
+            freq = psutil.cpu_freq()
+            self.cpu_frequency_max = freq[2]
+            self.cpu_frequency_current = freq[0]
+            self.cpu_frequency_min = freq[1]
+            print(freq)
         self.cpu_arch = platform.platform()
         self.active_core_count = multiprocessing.cpu_count()
 
