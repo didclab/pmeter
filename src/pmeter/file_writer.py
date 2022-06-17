@@ -10,7 +10,9 @@ import os
 import time
 import requests
 from pythonping import ping
+import statistics
 from datetime import datetime
+
 
 class ODS_Metrics():
 
@@ -85,7 +87,7 @@ class ODS_Metrics():
         self.active_core_count = multiprocessing.cpu_count()
 
     def measure_latency_rtt(self, latency_host="http://google.com"):
-        self.latency = measure_latency(host="google.com") #in miliseconds and a list
+        self.latency = statistics.mean(measure_latency(host="google.com")) #in miliseconds and a list
         r=requests.get(latency_host)
         self.rtt = r.elapsed.microseconds/1000
         print('Latency =', self.latency, " RTT=", self.rtt)
