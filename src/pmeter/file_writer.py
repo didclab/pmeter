@@ -101,6 +101,8 @@ class ODS_Metrics():
 
     def measure_network(self, interface):
         nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
+        if interface not in nic_counter_dic:
+            raise Exception("The interface passed was not found on your system")
         interface_counter_tuple = nic_counter_dic[interface]
         self.bytes_sent = interface_counter_tuple[0]
         self.bytes_recv = interface_counter_tuple[1]
