@@ -25,7 +25,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['tests']),
     entry_points ={
             'console_scripts': [
-                'pmeter = src.pmeter.pmeter_cli:main'
+                'pmeter = pmeter.pmeter_cli:main'
             ]
         },
     install_requires = [requirements],
