@@ -8,7 +8,7 @@ with open("_version.py",encoding='utf-8') as f:
     version = f.read().strip().split(" = ")[1][1:-1]
 
 setuptools.setup(
-    name="ods_pmeter",
+    name="pmeter_ods",
     version=version,
     author="OneDataShare",
     author_email="onedatashare@gmail.com",
