@@ -130,8 +130,7 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             measurements_counter += 1
             time.sleep(interval)
 
-
-if __name__ == '__main__':
+def main():
     arguments = docopt(__doc__, version='PMeter 1.0')
     if arguments['measure']:
         interface = arguments['<INTERFACE>']
@@ -157,3 +156,7 @@ if __name__ == '__main__':
                         measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print,
                         interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
+
+
+if __name__ == '__main__':
+    main()
