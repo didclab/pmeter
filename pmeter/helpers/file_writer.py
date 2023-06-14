@@ -121,17 +121,14 @@ class ODS_Metrics():
         nic_counter_dic = psutil.net_io_counters(pernic=True, nowrap=True)
         return nic_counter_dic.keys()
 
-    def to_file(self, folder_path=Path.home(), folder_name=".pmeter", file_name="pmeter_measure.txt"):
-        if folder_path is None or len(folder_path) < 2:
-            folder_path = Path.home()
-        if not folder_path:
-            full_path = os.path.join(Path.home(), folder_name)
-        else:
-            full_path = os.path.join(folder_path, folder_name)
-        if not os.path.exists(full_path):
-            os.makedirs(full_path)
-            print('Will be dumping data into the folder path ', folder_path)
-        full_path = os.path.join(full_path, file_name)
+    def to_file(self, folder_path, folder_name=".pmeter", file_name="pmeter_measure.txt"):
+        if folder_path is None:
+            folder_path = str(Path.home() / 'config' / '.pmeter')
+
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        full_path = os.path.join(folder_path, file_name)
         j = json.dumps(self.__dict__)
         with open(full_path, "a+") as f:
             f.write(j + "\n")
