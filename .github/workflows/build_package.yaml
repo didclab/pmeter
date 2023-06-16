@@ -32,7 +32,7 @@ jobs:
       - name: Upload package to pypi
         shell: bash
         run: |
-          twine upload -r pypi dist/*
+          twine upload --skip-existing dist/*
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
