@@ -7,9 +7,7 @@ import psutil
 import platform
 from tcp_latency import measure_latency
 import os
-import time
 import requests
-from pythonping import ping
 import statistics
 from datetime import datetime
 
@@ -123,12 +121,12 @@ class ODS_Metrics():
 
     def to_file(self, folder_path, folder_name=".pmeter", file_name="pmeter_measure.txt"):
         if folder_path is None:
-            folder_path = str(Path.home() / 'config' / '.pmeter')
+            folder_path = os.path.join(Path.home(), ".config", folder_name)
 
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-
+        folder_path = os.path.join(folder_path, folder_name)
         full_path = os.path.join(folder_path, file_name)
+        print(full_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
         j = json.dumps(self.__dict__)
         with open(full_path, "a+") as f:
             f.write(j + "\n")
