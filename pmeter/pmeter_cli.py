@@ -2,9 +2,11 @@
 
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
+  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
+    carbon      Measure the carbon footprint from the cli's host to the destination ip
 
 Options:
   -h --help                Show this screen
@@ -21,8 +23,10 @@ Options:
   --measure=MEASUREMENTS   The max number of times to measure your system. Set this value to 0 to ignore this and use only the length [default: 1]
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]
-
+  --max_hops=MAX_HOPS      The maximum number of hops [default: 64]
 """
+import json
+from pathlib import Path
 
 from docopt import docopt
 from helpers import constants
@@ -30,7 +34,18 @@ from datetime import datetime, timedelta
 from helpers.file_writer import ODS_Metrics
 import time
 import copy
+import requests
+from pandas import DataFrame
+import os
+import logging
 
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+
+from scapy.layers.inet import IP, ICMP
+from scapy.sendrecv import sr1
+from scapy.config import conf
+
+conf.use_pcap = True
 old_measure_dict = {}  # this is hackish but the keyis the interface name and for every metric we run of that interface name we replace and then run
 
 
@@ -130,6 +145,79 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             measurements_counter += 1
             time.sleep(interval)
 
+
+def traceroute(destination, max_hops):
+    ip_list = []
+    for ttl in range(1, max_hops + 1):
+        packet = IP(dst=destination, ttl=ttl) / ICMP()
+        reply = sr1(packet, verbose=0, timeout=1)
+        if reply is None:
+            break
+        elif reply.src == destination:
+            print(reply.src)
+            ip_list.append(reply.src)
+            break
+        else:
+            print(reply.src)
+            ip_list.append(reply.src)
+    return ip_list
+
+
+def geo_locate_ips(ip_list):
+    access_key = os.getenv("GEO_LOCATE_ACCESS_KEY")
+
+    url = "http://api.ipstack.com/"
+    params = {'access_key': access_key}
+    json_list = []
+    response_list = []
+    for ip in ip_list:
+        local_url = url + str(ip)
+        r = requests.get(url=local_url, params=params)
+        response_list.append(r)
+        json_list.append(r.json())
+    df = DataFrame(json_list)
+    return df
+
+
+def compute_carbon_per_ip(ip_df):
+    ip_df.dropna(inplace=True)
+    ip_df.reset_index(drop=True, inplace=True)
+    auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
+    headers = {
+        'auth-token': str(auth_token)
+    }
+    # Split the string into a list with one element
+    resp_list = []
+    carbon_ip_map = {}
+    for idx, row in ip_df.iterrows():
+        cur_lat = row['latitude']
+        cur_long = row['longitude']
+        cur_ip = row['ip']
+        params = {'lon': cur_long, 'lat': cur_lat}
+        resp = requests.get(url="https://api-access.electricitymaps.com/free-tier/carbon-intensity/latest",
+                            params=params, headers=headers)
+        carbon_data_json = resp.json()
+        carbon_ip_map[cur_ip] = carbon_data_json['carbonIntensity']
+        resp_list.append(resp)
+    carbon_intensity_path_total = 0
+    for ip in carbon_ip_map:
+        carbon_intensity_path_total += carbon_ip_map[ip]
+    avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
+    print("Average Carbon cost for network path: ", avg_carbon_network_path)
+    to_file(data={'avgCarbon': avg_carbon_network_path})
+    return avg_carbon_network_path
+
+
+def to_file(data, file_path=None, file_name="carbon_pmeter.txt"):
+    if file_path is None:
+        file_path = os.path.join(Path.home(), ".pmeter", file_name)
+    print(file_path)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    j = json.dumps(data)
+    with open(file_path, "a+") as f:
+        f.write(j + "\n")
+
+
 def main():
     arguments = docopt(__doc__, version='PMeter 1.0')
     if arguments['measure']:
@@ -156,6 +244,11 @@ def main():
                         measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print,
                         interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
+    elif arguments['carbon']:
+        ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
+        print(f"IP's to source {ip_list}")
+        ip_df = geo_locate_ips(ip_list)
+        compute_carbon_per_ip(ip_df)
 
 
 if __name__ == '__main__':
