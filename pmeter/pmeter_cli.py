@@ -172,8 +172,6 @@ def geo_locate_ips(ip_list) -> pd.DataFrame:
     url = "http://ip-api.com/batch"
     r = requests.post(url=url, json=payload)
     # return read_json(r.json())
-    df = DataFrame(r.json())
-    df.to_csv('ips_geolocated.csv')
     return DataFrame(r.json())
 
 
