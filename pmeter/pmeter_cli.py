@@ -26,8 +26,10 @@ Options:
   --max_hops=MAX_HOPS      The maximum number of hops [default: 64]
 """
 import json
+import math
 from pathlib import Path
 
+import pandas as pd
 from docopt import docopt
 from helpers import constants
 from datetime import datetime, timedelta
@@ -35,7 +37,7 @@ from helpers.file_writer import ODS_Metrics
 import time
 import copy
 import requests
-from pandas import DataFrame
+from pandas import DataFrame, read_json
 import os
 import logging
 
@@ -160,28 +162,25 @@ def traceroute(destination, max_hops):
         else:
             print(reply.src)
             ip_list.append(reply.src)
+    ip_list.append(destination)
     return ip_list
 
 
-def geo_locate_ips(ip_list):
-    access_key = os.getenv("GEO_LOCATE_ACCESS_KEY")
-
-    url = "http://api.ipstack.com/"
-    params = {'access_key': access_key}
-    json_list = []
-    response_list = []
-    for ip in ip_list:
-        local_url = url + str(ip)
-        r = requests.get(url=local_url, params=params)
-        response_list.append(r)
-        json_list.append(r.json())
-    df = DataFrame(json_list)
-    return df
+def geo_locate_ips(ip_list) -> pd.DataFrame:
+    # access_key = os.getenv("GEO_LOCATE_ACCESS_KEY")
+    payload = [{"query": ip} for ip in ip_list]
+    url = "http://ip-api.com/batch"
+    r = requests.post(url=url, json=payload)
+    # return read_json(r.json())
+    df = DataFrame(r.json())
+    df.to_csv('ips_geolocated.csv')
+    return DataFrame(r.json())
 
 
 def compute_carbon_per_ip(ip_df):
-    ip_df.dropna(inplace=True)
-    ip_df.reset_index(drop=True, inplace=True)
+    # ip_df.dropna(inplace=True)
+    # ip_df.reset_index(drop=True, inplace=True)
+    print(ip_df)
     auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
     headers = {
         'auth-token': str(auth_token)
@@ -189,13 +188,18 @@ def compute_carbon_per_ip(ip_df):
     # Split the string into a list with one element
     resp_list = []
     carbon_ip_map = {}
+    print(ip_df)
     for idx, row in ip_df.iterrows():
-        cur_lat = row['latitude']
-        cur_long = row['longitude']
-        cur_ip = row['ip']
+        cur_lat = row['lat']
+        cur_long = row['lon']
+        if math.isnan(cur_lat) or math.isnan(cur_long):
+            continue
+        cur_ip = row['query']
         params = {'lon': cur_long, 'lat': cur_lat}
         resp = requests.get(url="https://api-access.electricitymaps.com/free-tier/carbon-intensity/latest",
                             params=params, headers=headers)
+        print(resp.status_code)
+        print(resp.text)
         carbon_data_json = resp.json()
         carbon_ip_map[cur_ip] = carbon_data_json['carbonIntensity']
         resp_list.append(resp)
@@ -248,6 +252,8 @@ def main():
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
+        print("Df Columns: {}", ip_df.columns)
+        print("Df Rows {}", ip_df)
         compute_carbon_per_ip(ip_df)
 
 
