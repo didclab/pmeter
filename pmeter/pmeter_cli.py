@@ -40,6 +40,7 @@ import requests
 from pandas import DataFrame, read_json
 import os
 import logging
+import socket
 
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
@@ -148,23 +149,38 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             time.sleep(interval)
 
 
-def traceroute(destination, max_hops):
-    ip_list = []
-    for ttl in range(1, max_hops + 1):
-        packet = IP(dst=destination, ttl=ttl) / ICMP()
-        reply = sr1(packet, verbose=0, timeout=1)
-        if reply is None:
-            break
-        elif reply.src == destination:
-            print(reply.src)
-            ip_list.append(reply.src)
-            break
-        else:
-            print(reply.src)
-            ip_list.append(reply.src)
-    ip_list.append(destination)
-    return ip_list
+def resolve_hostname(hostname):
+    print(hostname)
+    ip_address = socket.gethostbyname(hostname)
+    print(f'Hostname={hostname} has IP={ip_address}')
+    return ip_address
 
+
+def traceroute(destination, max_hops=30):
+    ip_list = []
+    target_ip = resolve_hostname(destination)
+    if not target_ip:
+        return
+
+    ttl = 1
+    while ttl <= max_hops:
+        # Craft the ICMP packet with increasing TTL
+        packet = IP(dst=destination, ttl=ttl) / ICMP()
+        # Send the packet and wait for multiple responses
+        reply = sr1(packet, verbose=0, timeout=1)
+        # Print the hop number and corresponding IP address
+        if reply:
+            hop_ip = reply.src
+            ip_list.append(hop_ip)
+        # Check if the response is from the target
+        if hop_ip == target_ip:
+            break
+        # Check if the response is from the target
+        if reply and reply.src == target_ip:
+            break
+
+        ttl += 1
+    return ip_list
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
     # access_key = os.getenv("GEO_LOCATE_ACCESS_KEY")
@@ -178,7 +194,6 @@ def geo_locate_ips(ip_list) -> pd.DataFrame:
 def compute_carbon_per_ip(ip_df):
     # ip_df.dropna(inplace=True)
     # ip_df.reset_index(drop=True, inplace=True)
-    print(ip_df)
     auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
     headers = {
         'auth-token': str(auth_token)
@@ -186,7 +201,6 @@ def compute_carbon_per_ip(ip_df):
     # Split the string into a list with one element
     resp_list = []
     carbon_ip_map = {}
-    print(ip_df)
     for idx, row in ip_df.iterrows():
         cur_lat = row['lat']
         cur_long = row['lon']
@@ -196,16 +210,16 @@ def compute_carbon_per_ip(ip_df):
         params = {'lon': cur_long, 'lat': cur_lat}
         resp = requests.get(url="https://api-access.electricitymaps.com/free-tier/carbon-intensity/latest",
                             params=params, headers=headers)
-        print(resp.status_code)
-        print(resp.text)
         carbon_data_json = resp.json()
-        carbon_ip_map[cur_ip] = carbon_data_json['carbonIntensity']
+        carbon_intensity = carbon_data_json['carbonIntensity']
+        carbon_ip_map[cur_ip] = carbon_intensity
+        print(f"Lat:{cur_lat} Lon:{cur_long} IP:{cur_ip} CarbonIntensity:{carbon_intensity}")
         resp_list.append(resp)
     carbon_intensity_path_total = 0
     for ip in carbon_ip_map:
         carbon_intensity_path_total += carbon_ip_map[ip]
     avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
-    print("Average Carbon cost for network path: ", avg_carbon_network_path)
+    print("Average Carbon cost for network path:  ", avg_carbon_network_path)
     to_file(data={'avgCarbon': avg_carbon_network_path})
     return avg_carbon_network_path
 
@@ -250,8 +264,6 @@ def main():
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
-        print("Df Columns: {}", ip_df.columns)
-        print("Df Rows {}", ip_df)
         compute_carbon_per_ip(ip_df)
 
 
