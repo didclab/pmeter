@@ -2,7 +2,7 @@
 
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
-  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS>]
+  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -24,6 +24,7 @@ Options:
   --length=LENGTH          The amount of time to run for: 5w, 4d 3h, 2m, 1s are some examples of 5 weeks, 4 days, 3 hours, 2 min, 1 sec. Set this value to '-1s' to ignore this field and use only measurement [default: 10s]
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]
   --max_hops=MAX_HOPS      The maximum number of hops [default: 64]
+  --save_per_ip=SAVE_PER_IP Save carbon intensity per IP address [default: False]
 """
 import json
 import math
@@ -191,7 +192,7 @@ def geo_locate_ips(ip_list) -> pd.DataFrame:
     return DataFrame(r.json())
 
 
-def compute_carbon_per_ip(ip_df):
+def compute_carbon_per_ip(ip_df, store_format=False):
     # ip_df.dropna(inplace=True)
     # ip_df.reset_index(drop=True, inplace=True)
     auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
@@ -220,7 +221,10 @@ def compute_carbon_per_ip(ip_df):
         carbon_intensity_path_total += carbon_ip_map[ip]
     avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
     print("Average Carbon cost for network path:  ", avg_carbon_network_path)
-    to_file(data={'avgCarbon': avg_carbon_network_path})
+    if store_format == True:
+        to_file(carbon_ip_map, file_name='carbon_ip_map.json')
+    else:
+        to_file(data={'avgCarbon': avg_carbon_network_path})
     return avg_carbon_network_path
 
 
@@ -261,10 +265,12 @@ def main():
                         interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
     elif arguments['carbon']:
+        store_format = arguments['--save_per_ip']
+        print(store_format)
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
-        compute_carbon_per_ip(ip_df)
+        compute_carbon_per_ip(ip_df, store_format=bool(store_format))
 
 
 if __name__ == '__main__':
