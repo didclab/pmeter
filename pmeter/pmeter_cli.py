@@ -2,7 +2,7 @@
 
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
-  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP>]
+  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -25,6 +25,7 @@ Options:
   --user=USER              This will override the user we try to pick up from the environment variable(ODS_USER). If no user is passed then we will not submit the data generated to the ODS backend [default: ]
   --max_hops=MAX_HOPS      The maximum number of hops [default: 64]
   --save_per_ip=SAVE_PER_IP Save carbon intensity per IP address [default: False]
+  --save_time=<TIME>        Capture timestamp when taking carbon footprint [default: False]
 """
 import json
 import math
@@ -192,7 +193,7 @@ def geo_locate_ips(ip_list) -> pd.DataFrame:
     return DataFrame(r.json())
 
 
-def compute_carbon_per_ip(ip_df, store_format=False):
+def compute_carbon_per_ip(ip_df, store_format=False, save_time=False):
     # ip_df.dropna(inplace=True)
     # ip_df.reset_index(drop=True, inplace=True)
     auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
@@ -221,6 +222,7 @@ def compute_carbon_per_ip(ip_df, store_format=False):
         carbon_intensity_path_total += carbon_ip_map[ip]
     avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
     print("Average Carbon cost for network path:  ", avg_carbon_network_path)
+    carbon_ip_map['time'] = datetime.now().isoformat()
     if store_format == True:
         to_file(carbon_ip_map, file_name='carbon_ip_map.json')
     else:
@@ -266,11 +268,12 @@ def main():
         print("Done Measuring")
     elif arguments['carbon']:
         store_format = arguments['--save_per_ip']
+        save_time = arguments['--save_time']
         print(store_format)
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
-        compute_carbon_per_ip(ip_df, store_format=bool(store_format))
+        compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
 
 
 if __name__ == '__main__':
