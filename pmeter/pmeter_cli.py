@@ -214,12 +214,12 @@ def compute_carbon_per_ip(ip_df, store_format=False, save_time=False):
                             params=params, headers=headers)
         carbon_data_json = resp.json()
         carbon_intensity = carbon_data_json['carbonIntensity']
-        carbon_ip_map[cur_ip] = carbon_intensity
+        carbon_ip_map[cur_ip] = {"carbon_intensity": carbon_intensity, "lat": cur_lat, "lon": cur_long}
         print(f"Lat:{cur_lat} Lon:{cur_long} IP:{cur_ip} CarbonIntensity:{carbon_intensity}")
         resp_list.append(resp)
     carbon_intensity_path_total = 0
     for ip in carbon_ip_map:
-        carbon_intensity_path_total += carbon_ip_map[ip]
+        carbon_intensity_path_total += carbon_ip_map[ip]['carbon_intensity']
     avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
     print("Average Carbon cost for network path:  ", avg_carbon_network_path)
     carbon_ip_map['time'] = datetime.now().isoformat()
