@@ -174,9 +174,8 @@ def traceroute(destination, max_hops=30):
         if reply:
             hop_ip = reply.src
             ip_list.append(hop_ip)
-        # Check if the response is from the target
-        if hop_ip == target_ip:
-            break
+            if hop_ip == target_ip:
+                break
         # Check if the response is from the target
         if reply and reply.src == target_ip:
             break
