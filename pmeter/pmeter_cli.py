@@ -144,18 +144,13 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             time.sleep(interval)
 
 
-# def resolve_hostname(hostname):
-#     print(hostname)
-#     ip_address = socket.gethostbyname(hostname)
-#     print(f'Hostname={hostname} has IP={ip_address}')
-#     return ip_address
-
 def traceroute(destination, max_hops=30):
     ping_iterable = tracert(destination=destination, max_steps=max_hops)
     ip_list = []
     for ping in ping_iterable:
         ip_list.append(ping.ip)
     return ip_list
+
 
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
