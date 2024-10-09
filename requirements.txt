@@ -7,5 +7,5 @@ py-cpuinfo
 pythonping
 py3-validate-email
 requests
-scapy
 pandas
+Tracert
