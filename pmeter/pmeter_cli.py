@@ -41,16 +41,14 @@ import copy
 import requests
 from pandas import DataFrame, read_json
 import os
-import logging
-import socket
+from Tracert import tracert
 
-logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
-from scapy.layers.inet import IP, ICMP
+from scapy.layers.inet import IP, ICMP, UDP
 from scapy.sendrecv import sr1
-from scapy.config import conf
+# from scapy.config import conf
 
-conf.use_pcap = True
+# conf.use_pcap = True
 old_measure_dict = {}  # this is hackish but the keyis the interface name and for every metric we run of that interface name we replace and then run
 
 
@@ -151,38 +149,19 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             time.sleep(interval)
 
 
-def resolve_hostname(hostname):
-    print(hostname)
-    ip_address = socket.gethostbyname(hostname)
-    print(f'Hostname={hostname} has IP={ip_address}')
-    return ip_address
+# def resolve_hostname(hostname):
+#     print(hostname)
+#     ip_address = socket.gethostbyname(hostname)
+#     print(f'Hostname={hostname} has IP={ip_address}')
+#     return ip_address
 
 
 def traceroute(destination, max_hops=30):
+    ping_iterable = tracert(destination=destination, max_steps=max_hops)
     ip_list = []
-    target_ip = resolve_hostname(destination)
-    if not target_ip:
-        return
-
-    ttl = 1
-    while ttl <= max_hops:
-        # Craft the ICMP packet with increasing TTL
-        packet = IP(dst=destination, ttl=ttl) / ICMP()
-        # Send the packet and wait for multiple responses
-        reply = sr1(packet, verbose=0, timeout=1)
-        # Print the hop number and corresponding IP address
-        if reply:
-            hop_ip = reply.src
-            ip_list.append(hop_ip)
-            if hop_ip == target_ip:
-                break
-        else:
-            break
-        # Check if the response is from the target
-        if reply and reply.src == target_ip:
-            break
-
-        ttl += 1
+    for ping in ping_iterable:
+        ip_list.append(ping.ip)
+    print(ip_list)
     return ip_list
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
