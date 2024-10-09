@@ -43,11 +43,6 @@ from pandas import DataFrame, read_json
 import os
 from Tracert import tracert
 
-
-from scapy.layers.inet import IP, ICMP, UDP
-from scapy.sendrecv import sr1
-# from scapy.config import conf
-
 # conf.use_pcap = True
 old_measure_dict = {}  # this is hackish but the keyis the interface name and for every metric we run of that interface name we replace and then run
 
@@ -155,14 +150,13 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
 #     print(f'Hostname={hostname} has IP={ip_address}')
 #     return ip_address
 
-
 def traceroute(destination, max_hops=30):
     ping_iterable = tracert(destination=destination, max_steps=max_hops)
     ip_list = []
     for ping in ping_iterable:
         ip_list.append(ping.ip)
-    print(ip_list)
     return ip_list
+
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
     # access_key = os.getenv("GEO_LOCATE_ACCESS_KEY")
@@ -249,7 +243,6 @@ def main():
     elif arguments['carbon']:
         store_format = arguments['--save_per_ip']
         save_time = arguments['--save_time']
-        print(store_format)
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
