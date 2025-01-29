@@ -33,6 +33,9 @@ from pathlib import Path
 
 import pandas as pd
 from docopt import docopt
+from scapy.layers.dns import DNS, DNSQR
+from scapy.volatile import RandShort
+
 from helpers import constants
 from datetime import datetime, timedelta
 from helpers.file_writer import ODS_Metrics
@@ -41,7 +44,7 @@ import copy
 import requests
 from pandas import DataFrame, read_json
 import os
-from Tracert import tracert
+import scapy.layers.inet as inet
 
 # conf.use_pcap = True
 old_measure_dict = {}  # this is hackish but the keyis the interface name and for every metric we run of that interface name we replace and then run
@@ -145,10 +148,8 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
 
 
 def traceroute(destination, max_hops=30):
-    ping_iterable = tracert(destination=destination, max_steps=max_hops)
-    ip_list = []
-    for ping in ping_iterable:
-        ip_list.append(ping.ip)
+    result, _ = inet.traceroute(target=destination, maxttl=max_hops,l4=inet.UDP(sport=RandShort()) / DNS(qd=DNSQR(qname="www.google.com")))
+    ip_list = [res[1].src for res in result if res[1].src]
     return ip_list
 
 
