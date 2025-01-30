@@ -2,7 +2,7 @@
 
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
-  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME>]
+  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -26,6 +26,8 @@ Options:
   --max_hops=MAX_HOPS      The maximum number of hops [default: 64]
   --save_per_ip=SAVE_PER_IP Save carbon intensity per IP address [default: False]
   --save_time=<TIME>        Capture timestamp when taking carbon footprint [default: False]
+  --node_id=<NODE_ID>        The node name that is running pmeter [default: ""]
+  --job_id=<JOB_ID>         The job id that this measurement is correlated too [default: ""]
 """
 import json
 import math
@@ -193,11 +195,7 @@ def compute_carbon_per_ip(ip_df, store_format=False, save_time=False):
     avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
     print("Average Carbon cost for network path:  ", avg_carbon_network_path)
     carbon_ip_map['time'] = datetime.now().isoformat()
-    if store_format == True:
-        to_file(carbon_ip_map, file_name='carbon_ip_map.json')
-    else:
-        to_file(data={'avgCarbon': avg_carbon_network_path})
-    return avg_carbon_network_path
+    return carbon_ip_map, avg_carbon_network_path
 
 
 def to_file(data, file_path=None, file_name="carbon_pmeter.txt"):
@@ -239,10 +237,19 @@ def main():
     elif arguments['carbon']:
         store_format = arguments['--save_per_ip']
         save_time = arguments['--save_time']
+        node_id = arguments['--node_id']
+        job_id = arguments['--job_id']
         ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
         print(f"IP's to source {ip_list}")
         ip_df = geo_locate_ips(ip_list)
-        compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
+        carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
+        carbon_ip_map['node_id'] = node_id
+        carbon_ip_map['job_id'] = job_id
+
+        if store_format == True:
+            to_file(carbon_ip_map, file_name='carbon_ip_map.json')
+        else:
+            to_file(data={'avgCarbon': avg_carbon_network_path})
 
 
 if __name__ == '__main__':
