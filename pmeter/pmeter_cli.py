@@ -245,8 +245,8 @@ def main():
         carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
         carbon_ip_map['node_id'] = node_id
         carbon_ip_map['job_id'] = job_id
-
-        if store_format == True:
+        print(f"Store Format: {store_format}")
+        if bool(store_format):
             to_file(carbon_ip_map, file_name='carbon_ip_map.json')
         else:
             to_file(data={'avgCarbon': avg_carbon_network_path})
