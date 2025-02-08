@@ -150,10 +150,18 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
 
 
 def traceroute(destination, max_hops=30):
+    results = []
     result, _ = inet.traceroute(target=destination, maxttl=max_hops,l4=inet.UDP(sport=RandShort()) / DNS(qd=DNSQR(qname="www.google.com")))
-    ip_list = [res[1].src for res in result if res[1].src]
-    return ip_list
+    results = []
+    for res in result:
+        hop_info = {
+            "ip": res[1].src,
+            "rtt": res[1].time - res[0].sent_time if hasattr(res[1], "time") else None,  # Round-trip time
+            "ttl": res[0].ttl
+        }
+        results.append(hop_info)
 
+    return results
 
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
@@ -239,13 +247,25 @@ def main():
         save_time = arguments['--save_time']
         node_id = arguments['--node_id']
         job_id = arguments['--job_id']
-        ip_list = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
-        print(f"IP's to source {ip_list}")
+        traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
+        print(f"Traceroute data {traceroute_data}")
+        ip_list = []
+        for entry in traceroute_data:
+            ip_list.append(entry['ip'])
         ip_df = geo_locate_ips(ip_list)
         carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
+        print(f"Carbon Ip Map: {carbon_ip_map}")
         carbon_ip_map['node_id'] = node_id
         carbon_ip_map['job_id'] = job_id
         print(f"Store Format: {store_format}")
+        for ip_meta in traceroute_data:
+            ip = str(ip_meta['ip'])
+            rtt = ip_meta['rtt']
+            ttl = ip_meta['ttl']
+            if ip not in carbon_ip_map: continue
+            carbon_ip_map[ip]['rtt'] = rtt
+            carbon_ip_map[ip]['ttl'] = ttl
+
         if bool(store_format):
             to_file(carbon_ip_map, file_name='carbon_ip_map.json')
         else:
