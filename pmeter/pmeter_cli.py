@@ -3,6 +3,7 @@
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
   pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
+  pmeter_cli.py traceroute <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -31,6 +32,7 @@ Options:
 """
 import json
 import math
+import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -149,18 +151,71 @@ def begin_measuring(user, folder_path, file_name, folder_name, interface='', mea
             time.sleep(interval)
 
 
+def run_mtr_with_geolocation(destination, max_hops=30, node_id=None):
+    """Run MTR and return formatted report with geolocation"""
+    cmd = [
+        "mtr",
+        "-4",
+        "-n",
+        "--json",
+        "-b",
+        "-m", str(max_hops),
+        destination
+    ]
+
+    # Run MTR command
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    mtr_data = json.loads(result.stdout)
+
+    # Get unique IPs for geolocation
+    ips = list({hop["host"] for hop in mtr_data["report"]["hubs"]})
+    geo_data = geo_locate_ips(ips)
+    geo_map = {item["query"]: item for item in geo_data}
+
+    # Build the output structure
+    output = {}
+
+    # Add each hop with IP as key
+    for hop in mtr_data["report"]["hubs"]:
+        ip = hop["host"]
+        output[ip] = {
+            "lat": geo_map.get(ip, {}).get("lat"),
+            "lon": geo_map.get(ip, {}).get("lon"),
+            "rtt": hop["Avg"] / 1000,  # Convert to seconds
+            "ttl": hop["count"],
+            "loss_pct": hop["Loss%"],
+            "sent_packets": hop["Snt"],
+            "last_rtt": hop["Last"] / 1000,
+            "best_rtt": hop["Best"] / 1000,
+            "worst_rtt": hop["Wrst"] / 1000,
+            "stddev": hop["StDev"] / 1000,
+        }
+
+    # Add metadata
+    output.update({
+        "time": datetime.now().isoformat(),
+        "node_id": node_id if node_id else f"{mtr_data['report']['mtr']['src']}-mtr",
+        "job_id": "\"\""
+    })
+
+    return output
+
+
 def traceroute(destination, max_hops=30):
     results = []
-    result, _ = inet.traceroute(target=destination, maxttl=max_hops,l4=inet.UDP(sport=RandShort()) / DNS(qd=DNSQR(qname="www.google.com")))
-    results = []
+    # Plain UDP traceroute (no DNS)
+    result, _ = inet.traceroute(
+        target=destination,
+        maxttl=max_hops,
+        l4=inet.UDP(sport=RandShort(), dport=33434)  # Random src port, standard UDP traceroute dst port
+    )
     for res in result:
         hop_info = {
             "ip": res[1].src,
-            "rtt": res[1].time - res[0].sent_time if hasattr(res[1], "time") else None,  # Round-trip time
+            "rtt": res[1].time - res[0].sent_time if hasattr(res[1], "time") else None,
             "ttl": res[0].ttl
         }
         results.append(hop_info)
-
     return results
 
 
@@ -170,39 +225,73 @@ def geo_locate_ips(ip_list) -> pd.DataFrame:
     url = "http://ip-api.com/batch"
     r = requests.post(url=url, json=payload)
     # return read_json(r.json())
-    return DataFrame(r.json())
+    return r.json()
 
 
-def compute_carbon_per_ip(ip_df, store_format=False, save_time=False):
-    # ip_df.dropna(inplace=True)
-    # ip_df.reset_index(drop=True, inplace=True)
+def compute_carbon_per_ip(ip_df, store_format=False, save_time=False, max_retries=10, retry_delay=20):
     auth_token = os.getenv("ELECTRICITY_MAPS_AUTH_TOKEN")
-    headers = {
-        'auth-token': str(auth_token)
-    }
-    # Split the string into a list with one element
-    resp_list = []
+    headers = {'auth-token': str(auth_token)}
+
     carbon_ip_map = {}
+    resp_list = []
+
     for idx, row in ip_df.iterrows():
         cur_lat = row['lat']
         cur_long = row['lon']
+        cur_ip = row['query']
+
         if math.isnan(cur_lat) or math.isnan(cur_long):
             continue
-        cur_ip = row['query']
+
         params = {'lon': cur_long, 'lat': cur_lat}
-        resp = requests.get(url="https://api-access.electricitymaps.com/free-tier/carbon-intensity/latest",
-                            params=params, headers=headers)
-        carbon_data_json = resp.json()
-        carbon_intensity = carbon_data_json['carbonIntensity']
-        carbon_ip_map[cur_ip] = {"carbon_intensity": carbon_intensity, "lat": cur_lat, "lon": cur_long}
-        print(f"Lat:{cur_lat} Lon:{cur_long} IP:{cur_ip} CarbonIntensity:{carbon_intensity}")
-        resp_list.append(resp)
-    carbon_intensity_path_total = 0
-    for ip in carbon_ip_map:
-        carbon_intensity_path_total += carbon_ip_map[ip]['carbon_intensity']
-    avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map)
-    print("Average Carbon cost for network path:  ", avg_carbon_network_path)
+
+        # Retry logic
+        retry_count = 0
+        success = False
+
+        while retry_count < max_retries and not success:
+            try:
+                resp = requests.get(
+                    url="https://api.electricitymap.org/v3/carbon-intensity/latest",
+                    params=params,
+                    headers=headers
+                )
+
+                print(f"IP: {cur_ip} | Status Code: {resp.status_code} | Lat {cur_lat} Lon {cur_long}")
+                if resp.status_code == 200:
+                    carbon_data_json = resp.json()
+                    carbon_intensity = carbon_data_json['carbonIntensity']
+                    carbon_ip_map[cur_ip] = {
+                        "carbon_intensity": carbon_intensity,
+                        "lat": cur_lat,
+                        "lon": cur_long
+                    }
+                    print(f"Lat: {cur_lat} Lon: {cur_long} IP: {cur_ip} CarbonIntensity: {carbon_intensity}")
+                    resp_list.append(resp)
+                    success = True
+                else:
+                    print(f"Retry {retry_count + 1}/{max_retries} for IP {cur_ip}")
+                    retry_count += 1
+                    time.sleep(retry_delay)
+
+            except Exception as e:
+                print(f"Error for IP {cur_ip}: {e}")
+                retry_count += 1
+                time.sleep(retry_delay)
+
+        if not success:
+            print(f"Failed to fetch data for IP {cur_ip} after {max_retries} retries.")
+
+    # Compute average carbon intensity
+    carbon_intensity_path_total = sum(
+        entry['carbon_intensity'] for entry in carbon_ip_map.values()
+        if isinstance(entry, dict) and 'carbon_intensity' in entry
+    )
+    avg_carbon_network_path = carbon_intensity_path_total / len(carbon_ip_map) if carbon_ip_map else 0
+
+    print("Average Carbon cost for network path:", avg_carbon_network_path)
     carbon_ip_map['time'] = datetime.now().isoformat()
+
     return carbon_ip_map, avg_carbon_network_path
 
 
@@ -242,18 +331,19 @@ def main():
                         measure_network=network_only, measure_udp=udp_only, print_to_std_out=std_out_print,
                         interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
+
     elif arguments['carbon']:
         store_format = arguments['--save_per_ip']
         save_time = arguments['--save_time']
         node_id = arguments['--node_id']
         job_id = arguments['--job_id']
         traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
-        print(f"Traceroute data {traceroute_data}")
         ip_list = []
         for entry in traceroute_data:
             ip_list.append(entry['ip'])
-        ip_df = geo_locate_ips(ip_list)
-        carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format), save_time=bool(save_time))
+        ip_df = pd.DataFrame(geo_locate_ips(ip_list))
+        carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format),
+                                                                       save_time=bool(save_time))
         print(f"Carbon Ip Map: {carbon_ip_map}")
         carbon_ip_map['node_id'] = node_id
         carbon_ip_map['job_id'] = job_id
@@ -270,6 +360,14 @@ def main():
             to_file(carbon_ip_map, file_name='carbon_ip_map.json')
         else:
             to_file(data={'avgCarbon': avg_carbon_network_path})
+
+    elif arguments['traceroute']:
+        ip = arguments['<IP>']
+        node_id = arguments['--node_id']
+        result = run_mtr_with_geolocation(ip, 64, node_id)
+        print(result)
+        to_file(result, file_name='mtr_map.json')
+        print("Resulted saved too: mtr_map.json")
 
 
 if __name__ == '__main__':
