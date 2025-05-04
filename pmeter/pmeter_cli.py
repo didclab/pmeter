@@ -362,11 +362,8 @@ def main():
             to_file(data={'avgCarbon': avg_carbon_network_path})
 
     elif arguments['traceroute']:
-        ip = arguments['<IP>']
-        node_id = arguments['--node_id']
-        result = run_mtr_with_geolocation(ip, 64, node_id)
-        print(result)
-        to_file(result, file_name='mtr_map.json')
+        traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
+        to_file(traceroute_data, file_name='mtr_map.json')
         print("Resulted saved too: mtr_map.json")
 
 
