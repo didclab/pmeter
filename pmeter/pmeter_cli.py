@@ -3,7 +3,7 @@
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
   pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
-  pmeter_cli.py traceroute <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
+  pmeter_cli.py traceroute <IP> [--mtr=<MTR> --max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -29,6 +29,7 @@ Options:
   --save_time=<TIME>        Capture timestamp when taking carbon footprint [default: False]
   --node_id=<NODE_ID>        The node name that is running pmeter [default: ""]
   --job_id=<JOB_ID>         The job id that this measurement is correlated too [default: ""]
+  --mtr=<MTR>               Use MTR to generate output, must have mtr installed. [default: "mtr"]
 """
 import json
 import math
@@ -362,9 +363,17 @@ def main():
             to_file(data={'avgCarbon': avg_carbon_network_path})
 
     elif arguments['traceroute']:
-        traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
-        to_file(traceroute_data, file_name='mtr_map.json')
-        print("Resulted saved too: mtr_map.json")
+        use_mtr = arguments['--mtr']
+        ip = arguments['<IP>']
+        mh = int(arguments['--max_hops'])
+        if bool(use_mtr):
+            data = run_mtr_with_geolocation(ip, mh, "")
+            to_file(data, file_name='mtr_map.json')
+            print("Resulted saved too: mtr_map.json")
+        else:
+            traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
+            to_file(traceroute_data, file_name='traceroute_map.json')
+            print("Resulted saved too: traceroute_map.json")
 
 
 if __name__ == '__main__':
