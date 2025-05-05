@@ -3,7 +3,7 @@
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
   pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
-  pmeter_cli.py traceroute <IP> [--mtr --max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
+  pmeter_cli.py traceroute <IP> [--mtr --destination=<DEST> --max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -30,9 +30,11 @@ Options:
   --node_id=<NODE_ID>        The node name that is running pmeter [default: ""]
   --job_id=<JOB_ID>         The job id that this measurement is correlated too [default: ""]
   --mtr               Use MTR to generate output, must have mtr installed. [default: False]
+  --destination=<DEST>      The destination host name for the traceroute. [default: ""]
 """
 import json
 import math
+import socket
 import subprocess
 from pathlib import Path
 
@@ -205,19 +207,45 @@ def run_mtr_with_geolocation(destination, max_hops=30, node_id=None):
 def traceroute(destination, max_hops=30):
     results = []
     # Plain UDP traceroute (no DNS)
-    result, _ = inet.traceroute(
+    ans, uans = inet.traceroute(
         target=destination,
         maxttl=max_hops,
-        l4=inet.UDP(sport=RandShort(), dport=33434)  # Random src port, standard UDP traceroute dst port
+        l4=inet.UDP(sport=RandShort(), dport=33434)
     )
-    for res in result:
+    # Process answered packets (ans)
+    for snd, rcv in ans:
+        rtt_ms = (rcv.time - snd.sent_time) * 1000  # Convert to milliseconds
         hop_info = {
-            "ip": res[1].src,
-            "rtt": res[1].time - res[0].sent_time if hasattr(res[1], "time") else None,
-            "ttl": res[0].ttl
+            "ttl": snd.ttl,
+            "ip": rcv.src,
+            "rtt_ms": rtt_ms,
         }
         results.append(hop_info)
-    return results
+
+    ips = list({hop["ip"] for hop in results})
+    geo_data = geo_locate_ips(ips)
+    geo_map = {item["query"]: item for item in geo_data}
+
+    output = {}
+
+    # Add each hop with IP as key
+    for hop in results:
+        ip = hop["ip"]
+        output[ip] = {
+            "lat": geo_map.get(ip, {}).get("lat"),
+            "lon": geo_map.get(ip, {}).get("lon"),
+            "rtt": hop["rtt_ms"] / 1000,  # Convert to seconds
+            "ttl": hop["ttl"]
+        }
+
+    # Add metadata
+    output.update({
+        "time": datetime.now().isoformat(),
+        "source": socket.gethostname(),
+        "destination": destination
+    })
+
+    return output
 
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
@@ -366,6 +394,7 @@ def main():
         use_mtr = arguments.get('--mtr', False)
         ip = arguments['<IP>']
         mh = int(arguments.get('--max_hops', 30))
+        destination_name = str(arguments['--destination'])
         if not use_mtr:
             traceroute_data = traceroute(arguments['<IP>'], mh)
             to_file(traceroute_data, file_name='traceroute_map.json')
