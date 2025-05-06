@@ -2,8 +2,7 @@
 
 Usage:
   pmeter_cli.py measure <INTERFACE> [-K=KER_BOOL -N=NET_BOOL -F=FILE_NAME -S=STD_OUT_BOOL --interval=INTERVAL --measure=MEASUREMENTS --length=LENGTH --user=USER --file_name=FILENAME --folder_path=FOLDERPATH --folder_name=FOLDERNAME]
-  pmeter_cli.py carbon <IP> [--max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
-  pmeter_cli.py traceroute <IP> [--mtr --destination=<DEST> --max_hops=<MAX_HOPS> --save_per_ip=<SAVE_PER_IP> --save_time=<TIME> --node_id=<NODE_ID> --job_id=<JOB_ID>]
+  pmeter_cli.py traceroute <IP> [--mtr --source=<SOURCE> --destination=<DEST> --max_hops=<MAX_HOPS> --save_time=<TIME> --node_id=<NODE_ID> ]
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
@@ -31,6 +30,7 @@ Options:
   --job_id=<JOB_ID>         The job id that this measurement is correlated too [default: ""]
   --mtr               Use MTR to generate output, must have mtr installed. [default: False]
   --destination=<DEST>      The destination host name for the traceroute. [default: ""]
+  --source=<SOURCE>         The source host name. [default: ""]
 """
 import json
 import math
@@ -204,48 +204,120 @@ def run_mtr_with_geolocation(destination, max_hops=30, node_id=None):
     return output
 
 
-def traceroute(destination, max_hops=30):
-    results = []
-    # Plain UDP traceroute (no DNS)
-    ans, uans = inet.traceroute(
+def get_self_geodata() -> dict:
+    """Get geolocation of current machine using ip-api.com"""
+    try:
+        response = requests.get("http://ip-api.com/json/", timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "lat": data.get("lat"),
+                "lon": data.get("lon"),
+                "city": data.get("city"),
+                "country": data.get("country"),
+                "asn": data.get("as", "").split()[0] if data.get("as") else None,
+                "query": socket.gethostbyname(socket.gethostname())
+            }
+    except:
+        pass
+    return None
+
+
+def traceroute(destination: str, max_hops: int = 30, source_name: str = "", destination_name: str = "") -> dict:
+    """
+    Perform traceroute using ip-api.com for geolocation
+
+    Args:
+        destination: Target IP or hostname
+        max_hops: Maximum number of hops to trace
+        source_name: Human-readable source identifier
+        destination_name: Human-readable destination identifier
+
+    Returns:
+        Dictionary containing standardized traceroute data
+    """
+    # Get self geodata first (only 1 API call)
+    self_geo = get_self_geodata()
+
+    # Perform traceroute
+    ans, _ = inet.traceroute(
         target=destination,
         maxttl=max_hops,
         l4=inet.UDP(sport=RandShort(), dport=33434)
     )
-    # Process answered packets (ans)
+
+    # Process results
+    hops = []
     for snd, rcv in ans:
-        rtt_ms = (rcv.time - snd.sent_time) * 1000  # Convert to milliseconds
-        hop_info = {
+        rtt_ms = (rcv.time - snd.sent_time) * 1000
+        hops.append({
             "ttl": snd.ttl,
             "ip": rcv.src,
-            "rtt_ms": rtt_ms,
-        }
-        results.append(hop_info)
+            "rtt_ms": round(rtt_ms, 3)
+        })
 
-    ips = list({hop["ip"] for hop in results})
-    geo_data = geo_locate_ips(ips)
-    geo_map = {item["query"]: item for item in geo_data}
-
-    output = {}
-
-    # Add each hop with IP as key
-    for hop in results:
+    # Enhanced hops with geolocation
+    enhanced_hops = []
+    for i, hop in enumerate(hops):
         ip = hop["ip"]
-        output[ip] = {
-            "lat": geo_map.get(ip, {}).get("lat"),
-            "lon": geo_map.get(ip, {}).get("lon"),
-            "rtt": hop["rtt_ms"] / 1000,  # Convert to seconds
-            "ttl": hop["ttl"]
-        }
 
-    # Add metadata
-    output.update({
-        "time": datetime.now().isoformat(),
-        "source": socket.gethostname(),
-        "destination": destination
-    })
+        # Special handling for first hop (local machine)
+        if i == 0 and self_geo:
+            enhanced_hops.append({
+                **hop,
+                "geo": {
+                    "lat": self_geo["lat"],
+                    "lon": self_geo["lon"],
+                    "city": self_geo["city"],
+                    "country": self_geo["country"]
+                },
+                "asn": self_geo["asn"],
+                "geo_source": "ip-api.com (self)"
+            })
+            continue
 
-    return output
+        # Geolocate other hops
+        try:
+            response = requests.get(f"http://ip-api.com/json/{ip}", timeout=2)
+            if response.status_code == 200:
+                geo = response.json()
+                enhanced_hops.append({
+                    **hop,
+                    "geo": {
+                        "lat": geo.get("lat"),
+                        "lon": geo.get("lon"),
+                        "city": geo.get("city"),
+                        "country": geo.get("country")
+                    },
+                    "asn": geo.get("as", "").split()[0] if geo.get("as") else None,
+                    "geo_source": "ip-api.com"
+                })
+            else:
+                enhanced_hops.append({**hop, "geo": None, "asn": None, "geo_source": "api_failed"})
+        except:
+            enhanced_hops.append({**hop, "geo": None, "asn": None, "geo_source": "request_failed"})
+
+    return {
+        "metadata": {
+            "source": source_name or socket.gethostname(),
+            "destination": destination_name or destination,
+            "timestamp": datetime.now().isoformat(),
+            "tool": "scapy-traceroute",
+            "protocol": "UDP",
+            "local_geo": self_geo  # Include self geodata in metadata
+        },
+        "statistics": {
+            "hops_count": len(enhanced_hops),
+            "final_rtt_ms": enhanced_hops[-1]["rtt_ms"] if enhanced_hops else None,
+            "max_rtt_ms": max(h["rtt_ms"] for h in enhanced_hops) if enhanced_hops else None,
+            "max_rtt_hop": {
+                "ttl": max(enhanced_hops, key=lambda x: x["rtt_ms"])["ttl"],
+                "ip": max(enhanced_hops, key=lambda x: x["rtt_ms"])["ip"],
+                "rtt_ms": max(h["rtt_ms"] for h in enhanced_hops)
+            } if enhanced_hops else None
+        },
+        "hops": enhanced_hops
+    }
 
 
 def geo_locate_ips(ip_list) -> pd.DataFrame:
@@ -361,42 +433,14 @@ def main():
                         interval=pause_between_measure, length=lengthOfExperiment, measurement=int(times_to_measure))
         print("Done Measuring")
 
-    elif arguments['carbon']:
-        store_format = arguments['--save_per_ip']
-        save_time = arguments['--save_time']
-        node_id = arguments['--node_id']
-        job_id = arguments['--job_id']
-        traceroute_data = traceroute(arguments['<IP>'], int(arguments['--max_hops']))
-        ip_list = []
-        for entry in traceroute_data:
-            ip_list.append(entry['ip'])
-        ip_df = pd.DataFrame(geo_locate_ips(ip_list))
-        carbon_ip_map, avg_carbon_network_path = compute_carbon_per_ip(ip_df, store_format=bool(store_format),
-                                                                       save_time=bool(save_time))
-        print(f"Carbon Ip Map: {carbon_ip_map}")
-        carbon_ip_map['node_id'] = node_id
-        carbon_ip_map['job_id'] = job_id
-        print(f"Store Format: {store_format}")
-        for ip_meta in traceroute_data:
-            ip = str(ip_meta['ip'])
-            rtt = ip_meta['rtt']
-            ttl = ip_meta['ttl']
-            if ip not in carbon_ip_map: continue
-            carbon_ip_map[ip]['rtt'] = rtt
-            carbon_ip_map[ip]['ttl'] = ttl
-
-        if bool(store_format):
-            to_file(carbon_ip_map, file_name='carbon_ip_map.json')
-        else:
-            to_file(data={'avgCarbon': avg_carbon_network_path})
-
     elif arguments['traceroute']:
         use_mtr = arguments.get('--mtr', False)
         ip = arguments['<IP>']
         mh = int(arguments.get('--max_hops', 30))
         destination_name = str(arguments['--destination'])
+        source_name = str(arguments['--source'])
         if not use_mtr:
-            traceroute_data = traceroute(arguments['<IP>'], mh)
+            traceroute_data = traceroute(arguments['<IP>'], mh, source_name, destination_name)
             to_file(traceroute_data, file_name='traceroute_map.json')
             print("Resulted saved too: traceroute_map.json")
         else:
