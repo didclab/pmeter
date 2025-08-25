@@ -6,7 +6,7 @@ Usage:
 
 Commands:
     measure     The command to start measuring the computers network activity on the specified network devices. This command accepts a list of interfaces that you wish to monitor
-    carbon      Measure the carbon footprint from the cli's host to the destination ip
+    traceroute  Use scapy to run a traceroute
 
 Options:
   -h --help                Show this screen
